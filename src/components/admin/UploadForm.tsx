@@ -43,6 +43,7 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
       body.set("newspaperId", String(newspaperId));
       body.set("year", String(item.year));
       body.set("month", String(item.month));
+      body.set("publishedAt", item.publishedAt.toISOString());
       if (item.editionNumber != null) body.set("editionNumber", String(item.editionNumber));
       body.set("title", item.title);
       body.set("file", item.file);
@@ -151,8 +152,11 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
                 className="flex items-center justify-between border-b border-brand-50 px-3 py-1.5 text-xs last:border-b-0"
               >
                 <span className="min-w-0 flex-1 truncate text-slate-600">{item.relativePath}</span>
+                {item.editionNumber != null && (
+                  <span className="ml-2 shrink-0 text-slate-400">nº {item.editionNumber}</span>
+                )}
                 <span className="ml-2 shrink-0 text-slate-400">
-                  {item.year}/{String(item.month).padStart(2, "0")}
+                  {item.publishedAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
                 </span>
                 <span className="ml-2 w-5 shrink-0 text-center">
                   {item.status === "uploading" && (

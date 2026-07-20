@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const year = Number(formData.get("year"));
   const month = Number(formData.get("month"));
   const editionNumberRaw = formData.get("editionNumber");
+  const publishedAtRaw = String(formData.get("publishedAt") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const file = formData.get("file");
 
@@ -54,7 +55,11 @@ export async function POST(request: Request) {
   });
 
   const editionNumber = editionNumberRaw ? Number(editionNumberRaw) : null;
-  const publishedAt = new Date(Date.UTC(year, month - 1, 1));
+  const parsedPublishedAt = publishedAtRaw ? new Date(publishedAtRaw) : null;
+  const publishedAt =
+    parsedPublishedAt && !Number.isNaN(parsedPublishedAt.getTime())
+      ? parsedPublishedAt
+      : new Date(Date.UTC(year, month - 1, 1));
 
   const edition = await prisma.edition.create({
     data: {
