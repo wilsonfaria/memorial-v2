@@ -1,6 +1,8 @@
 import { getSiteSettings } from "@/lib/settings";
 import AppearanceForm from "./AppearanceForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminAppearancePage() {
   const settings = await getSiteSettings();
 

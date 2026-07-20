@@ -1,6 +1,8 @@
 import EditionsView from "@/components/EditionsView";
 import { getAllEditions } from "@/lib/data";
 
+export const dynamic = "force-dynamic";
+
 export default async function AllEditionsPage() {
   const editions = await getAllEditions();
 

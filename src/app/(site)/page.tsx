@@ -3,6 +3,8 @@ import { ArrowRight } from "lucide-react";
 import EditionsView from "@/components/EditionsView";
 import { getRecentEditions } from "@/lib/data";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const editions = await getRecentEditions(10);
 

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import UploadForm from "@/components/admin/UploadForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminUploadPage() {
   const newspapers = await prisma.newspaper.findMany({ orderBy: { id: "asc" } });
 

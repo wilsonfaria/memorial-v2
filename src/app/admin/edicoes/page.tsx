@@ -4,6 +4,8 @@ import DeleteButton from "@/components/admin/DeleteButton";
 import { deleteEditionAction } from "@/lib/actions/edition-actions";
 import { formatDate, formatFileSize } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminEditionsPage() {
   const [newspapers, editions] = await Promise.all([
     prisma.newspaper.findMany({

@@ -4,6 +4,8 @@ import EditionsView from "@/components/EditionsView";
 import { getEditionsForMonth, getMonthBreadcrumb } from "@/lib/data";
 import { monthName } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 export default async function MonthPage({
   params,
 }: {

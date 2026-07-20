@@ -1,6 +1,8 @@
 import { getEffectiveDbConfig } from "@/lib/db-config";
 import DbConfigForm from "./DbConfigForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminSettingsPage() {
   const current = getEffectiveDbConfig();
 

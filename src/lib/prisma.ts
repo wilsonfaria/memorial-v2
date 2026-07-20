@@ -26,10 +26,18 @@ const globalForPrisma = globalThis as unknown as {
   prismaClient: PrismaClient | undefined;
 };
 
-let currentClient = globalForPrisma.prismaClient ?? createPrismaClient(getDatabaseUrl());
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaClient = currentClient;
+/**
+ * Lazily creates (and caches) the client on first real use. Must stay lazy —
+ * `next build` imports every route module to collect page data, and that must
+ * succeed even when no database is reachable yet (e.g. before the hosting
+ * database has been created). Eagerly building the client at module load
+ * time breaks the build in that scenario.
+ */
+function getCurrentClient(): PrismaClient {
+  if (!globalForPrisma.prismaClient) {
+    globalForPrisma.prismaClient = createPrismaClient(getDatabaseUrl());
+  }
+  return globalForPrisma.prismaClient;
 }
 
 /**
@@ -39,7 +47,7 @@ if (process.env.NODE_ENV !== "production") {
  */
 export const prisma = new Proxy({} as PrismaClient, {
   get(_target, prop, receiver) {
-    return Reflect.get(currentClient as object, prop, receiver);
+    return Reflect.get(getCurrentClient() as object, prop, receiver);
   },
 }) as PrismaClient;
 
@@ -61,11 +69,10 @@ export async function reconnectPrisma(url: string): Promise<void> {
   const newClient = createPrismaClient(url);
   await pingDatabase(newClient);
 
-  const previousClient = currentClient;
-  currentClient = newClient;
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prismaClient = currentClient;
-  }
+  const previousClient = globalForPrisma.prismaClient;
+  globalForPrisma.prismaClient = newClient;
 
-  await previousClient.$disconnect().catch(() => {});
+  if (previousClient) {
+    await previousClient.$disconnect().catch(() => {});
+  }
 }

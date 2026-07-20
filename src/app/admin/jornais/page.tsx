@@ -3,6 +3,8 @@ import { deleteNewspaperAction } from "@/lib/actions/newspaper-actions";
 import NewspaperForm from "./NewspaperForm";
 import { Trash2 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminNewspapersPage() {
   const newspapers = await prisma.newspaper.findMany({
     orderBy: { id: "asc" },

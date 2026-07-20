@@ -3,6 +3,8 @@ import { getNewspaper, getNavigationTree } from "@/lib/data";
 import { getSiteSettings } from "@/lib/settings";
 import { generateBrandScale, BRAND_STEPS } from "@/lib/color";
 
+export const dynamic = "force-dynamic";
+
 export default async function SiteLayout({
   children,
 }: {

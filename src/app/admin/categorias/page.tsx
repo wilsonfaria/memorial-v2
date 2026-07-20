@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import CategoryTree from "@/components/admin/CategoryTree";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminCategoriesPage() {
   const newspapers = await prisma.newspaper.findMany({
     orderBy: { id: "asc" },

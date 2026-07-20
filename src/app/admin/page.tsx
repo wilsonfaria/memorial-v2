@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Newspaper, FolderTree, FileText, UploadCloud } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const [newspaperCount, decadeCount, editionCount] = await Promise.all([
     prisma.newspaper.count(),
