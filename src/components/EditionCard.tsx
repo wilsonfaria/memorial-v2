@@ -1,8 +1,14 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { FileText } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
+import { useInView } from "@/hooks/useInView";
 import { formatDate } from "@/lib/format";
+
+// pdfjs touches browser-only globals (DOMMatrix) at module load time,
+// so this must never be evaluated during server-side rendering.
+const PdfThumbnail = dynamic(() => import("@/components/PdfThumbnail"), { ssr: false });
 
 export type EditionSummary = {
   id: number;
@@ -13,14 +19,22 @@ export type EditionSummary = {
 
 export function EditionCard({ edition }: { edition: EditionSummary }) {
   const { openEdition } = useEditionModal();
+  const { ref, inView } = useInView<HTMLDivElement>();
 
   return (
     <button
       onClick={() => openEdition(edition.id)}
       className="group flex flex-col overflow-hidden rounded-xl border border-brand-100 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300"
     >
-      <div className="flex aspect-[3/4] items-center justify-center bg-gradient-to-b from-brand-50 to-brand-100">
-        <FileText size={40} className="text-brand-300 transition-colors group-hover:text-brand-500" />
+      <div
+        ref={ref}
+        className="flex aspect-[3/4] items-center justify-center overflow-hidden bg-gradient-to-b from-brand-50 to-brand-100"
+      >
+        {inView ? (
+          <PdfThumbnail editionId={edition.id} width={220} />
+        ) : (
+          <FileText size={40} className="text-brand-300 transition-colors group-hover:text-brand-500" />
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-1 px-3 py-2.5">
         <span className="text-sm font-medium text-slate-700 line-clamp-2">{edition.title}</span>
