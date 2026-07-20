@@ -8,7 +8,7 @@ import { Download, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
 import { formatDateLong, formatFileSize } from "@/lib/format";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 type EditionDetail = {
   id: number;
