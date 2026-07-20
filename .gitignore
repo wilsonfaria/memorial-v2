@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# runtime data (not part of the deployable source)
+/storage/pdfs
+/config/db-config.json
+public/pdf.worker.min.mjs

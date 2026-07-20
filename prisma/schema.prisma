@@ -1,0 +1,105 @@
+// Prisma schema for the Memorial do Jornal portal
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Singleton row (id always 1) holding site-wide appearance settings.
+model SiteSetting {
+  id           Int      @id @default(1)
+  primaryColor String   @default("#4f8ecb")
+  creditsText  String   @db.Text
+  updatedAt    DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("admin_users")
+}
+
+/// The publication itself (logo, name). Kept as a table in case more than
+/// one masthead is ever hosted on the same portal.
+model Newspaper {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+
+  decades Decade[]
+
+  @@map("newspapers")
+}
+
+model Decade {
+  id          Int    @id @default(autoincrement())
+  /// e.g. 2020 for the "decade of 2020" bucket
+  startYear   Int
+  label       String
+  newspaperId Int
+  newspaper   Newspaper @relation(fields: [newspaperId], references: [id], onDelete: Cascade)
+
+  years Year[]
+
+  @@unique([newspaperId, startYear])
+  @@map("decades")
+}
+
+model Year {
+  id       Int    @id @default(autoincrement())
+  year     Int
+  decadeId Int
+  decade   Decade @relation(fields: [decadeId], references: [id], onDelete: Cascade)
+
+  months Month[]
+
+  @@unique([decadeId, year])
+  @@map("years")
+}
+
+model Month {
+  id     Int    @id @default(autoincrement())
+  /// 1-12
+  month  Int
+  yearId Int
+  year   Year   @relation(fields: [yearId], references: [id], onDelete: Cascade)
+
+  editions Edition[]
+
+  @@unique([yearId, month])
+  @@map("months")
+}
+
+model Edition {
+  id            Int      @id @default(autoincrement())
+  title         String
+  /// Sequential edition number within the newspaper's whole run
+  editionNumber Int?
+  publishedAt   DateTime
+  /// Relative path under the private storage directory (not web-exposed directly)
+  pdfPath       String
+  /// Cover/thumbnail image generated from the PDF's first page
+  thumbnailPath String?
+  fileSizeBytes Int?
+  pageCount     Int?
+  monthId       Int
+  month         Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
+
+  /// Full text extracted via OCR, reserved for future full-text/RAG search
+  extractedText String?  @db.LongText
+  createdAt     DateTime @default(now())
+
+  @@index([publishedAt])
+  @@map("editions")
+}
