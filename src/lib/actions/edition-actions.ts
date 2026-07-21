@@ -61,18 +61,25 @@ export async function createEditionAction(
     },
   });
 
-  const relDir = path.join(String(month.year.year), String(month.month).padStart(2, "0"));
-  await ensureStorageDir(relDir);
-  const fileName = `edicao-${edition.id}.pdf`;
-  const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
+  try {
+    const relDir = path.join(String(month.year.year), String(month.month).padStart(2, "0"));
+    await ensureStorageDir(relDir);
+    const fileName = `edicao-${edition.id}.pdf`;
+    const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
 
-  await prisma.edition.update({
-    where: { id: edition.id },
-    data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
-  });
+    await prisma.edition.update({
+      where: { id: edition.id },
+      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
+    });
+  } catch (err) {
+    // Never leave a DB row with no file behind.
+    await prisma.edition.delete({ where: { id: edition.id } }).catch(() => {});
+    console.error("Falha ao salvar o PDF da edição:", err);
+    return { error: "Falha ao salvar o arquivo no servidor. Tente enviar o PDF novamente." };
+  }
 
   revalidatePath("/admin/edicoes");
   revalidatePath("/");

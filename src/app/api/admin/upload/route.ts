@@ -81,18 +81,29 @@ export async function POST(request: Request) {
     },
   });
 
-  const relDir = path.join(String(year), String(month).padStart(2, "0"));
-  await ensureStorageDir(relDir);
-  const fileName = `edicao-${edition.id}.pdf`;
-  const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
+  try {
+    const relDir = path.join(String(year), String(month).padStart(2, "0"));
+    await ensureStorageDir(relDir);
+    const fileName = `edicao-${edition.id}.pdf`;
+    const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
 
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
 
-  await prisma.edition.update({
-    where: { id: edition.id },
-    data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
-  });
+    await prisma.edition.update({
+      where: { id: edition.id },
+      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
+    });
+  } catch (err) {
+    // Never leave a DB row with no file behind — that's what produced
+    // editions that show up in the list but have a "broken" viewer/thumbnail.
+    await prisma.edition.delete({ where: { id: edition.id } }).catch(() => {});
+    console.error("Falha ao salvar o PDF do upload em massa:", err);
+    return Response.json(
+      { error: "Falha ao salvar o arquivo no servidor. Tente enviar este PDF novamente." },
+      { status: 500 }
+    );
+  }
 
   return Response.json({ ok: true, editionId: edition.id });
 }

@@ -16,6 +16,14 @@ export async function GET(
   if (!edition) {
     return new Response("Edição não encontrada", { status: 404 });
   }
+  if (!edition.pdfPath) {
+    // pdfPath empty means a previous upload never finished writing the file
+    // (e.g. it errored out after the edition row was created). Without this
+    // guard, absolutePdfPath("") resolves to the storage root *directory*,
+    // and streaming a directory as if it were a file breaks the response
+    // instead of cleanly 404ing.
+    return new Response("Arquivo não encontrado no armazenamento", { status: 404 });
+  }
 
   let absPath: string;
   try {
