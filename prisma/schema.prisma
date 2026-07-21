@@ -12,20 +12,90 @@ datasource db {
 /// Singleton row (id always 1) holding site-wide appearance settings.
 model SiteSetting {
   id           Int      @id @default(1)
-  primaryColor String   @default("#4f8ecb")
-  creditsText  String   @db.Text
+  backgroundColor String  @default("#f7f8fb")
+  primaryColor   String   @default("#4f8ecb")
+  accentColor    String   @default("#d9822b")
+  secondaryColor String   @default("#A8E6CF")
+  supportColor   String   @default("#AEDDF7")
+  creditsText    String   @db.Text
+  facebookUrl  String?
+  instagramUrl String?
+  xUrl         String?
   updatedAt    DateTime @updatedAt
 
   @@map("site_settings")
 }
 
+model Page {
+  id            Int      @id @default(autoincrement())
+  slug          String   @unique
+  title         String
+  body          String   @db.LongText
+  coverImageUrl String?
+  published     Boolean  @default(false)
+  showInMenu    Boolean  @default(true)
+  menuLabel     String?
+  menuOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  images PageImage[]
+
+  @@map("pages")
+}
+
+model PageImage {
+  id      Int    @id @default(autoincrement())
+  pageId  Int
+  page    Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  url     String
+  order   Int    @default(0)
+
+  @@map("page_images")
+}
+
+enum SponsorPlacement {
+  SIDEBAR
+  FOOTER
+  BOTH
+}
+
+model Sponsor {
+  id        Int              @id @default(autoincrement())
+  name      String
+  logoUrl   String
+  linkUrl   String?
+  placement SponsorPlacement @default(BOTH)
+  order     Int              @default(0)
+  active    Boolean          @default(true)
+  createdAt DateTime         @default(now())
+
+  @@map("sponsors")
+}
+
 model AdminUser {
   id           Int      @id @default(autoincrement())
+  name         String
   username     String   @unique
+  email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
 
+  resetTokens PasswordResetToken[]
+
   @@map("admin_users")
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  userId    Int
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 /// The publication itself (logo, name). Kept as a table in case more than
@@ -35,6 +105,7 @@ model Newspaper {
   name      String
   slug      String   @unique
   logoUrl   String?
+  tagline   String?
   createdAt DateTime @default(now())
 
   decades Decade[]
@@ -100,6 +171,26 @@ model Edition {
   extractedText String?  @db.LongText
   createdAt     DateTime @default(now())
 
+  events AnalyticsEvent[]
+
   @@index([publishedAt])
   @@map("editions")
+}
+
+enum AnalyticsEventType {
+  EDITION_VIEW
+  EDITION_DOWNLOAD
+  SITE_VISIT
+}
+
+model AnalyticsEvent {
+  id        Int                @id @default(autoincrement())
+  type      AnalyticsEventType
+  editionId Int?
+  edition   Edition?           @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+
+  @@index([type, createdAt])
+  @@index([editionId])
+  @@map("analytics_events")
 }

@@ -1,23 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f8fc;
-  --foreground: #1e293b;
+  --background: #f7f8fb;
+  --foreground: #1a2138;
 
-  --color-brand-50: #f2f7fc;
-  --color-brand-100: #e3edf9;
-  --color-brand-200: #c9def3;
-  --color-brand-300: #a3c8ea;
-  --color-brand-400: #74abdb;
-  --color-brand-500: #4f8ecb;
-  --color-brand-600: #3a72ab;
-  --color-brand-700: #2f5c8a;
-  --color-brand-800: #2a4c70;
-  --color-brand-900: #24405d;
+  --color-brand-50: #f5f6fa;
+  --color-brand-100: #e3e8f2;
+  --color-brand-200: #c7d0e5;
+  --color-brand-300: #9dadd2;
+  --color-brand-400: #6d84bb;
+  --color-brand-500: #4c66a4;
+  --color-brand-600: #3d5284;
+  --color-brand-700: #32436c;
+  --color-brand-800: #2a385b;
+  --color-brand-900: #222d49;
 
-  --color-paper-50: #fdfcfa;
-  --color-paper-100: #f7f3ec;
-  --color-paper-200: #ede5d8;
+  --color-paper-50: #fbfbfd;
+  --color-paper-100: #eef0f5;
+  --color-paper-200: #dde1ea;
+
+  --color-accent-50: #f5f6fa;
+  --color-accent-100: #e3e7f2;
+  --color-accent-200: #c8cfe5;
+  --color-accent-300: #9eabd1;
+  --color-accent-400: #6d81ba;
+  --color-accent-500: #4d62a3;
+  --color-accent-600: #3e5084;
+  --color-accent-700: #33416b;
+  --color-accent-800: #2a365a;
+  --color-accent-900: #222c49;
+
+  --color-secondary-50: #f5f7f9;
+  --color-secondary-100: #e5e9f0;
+  --color-secondary-200: #ccd3e1;
+  --color-secondary-300: #a5b3ca;
+  --color-secondary-400: #788caf;
+  --color-secondary-500: #596f97;
+  --color-secondary-600: #485a7a;
+  --color-secondary-700: #3b4963;
+  --color-secondary-800: #313e53;
+  --color-secondary-900: #283243;
+
+  --color-support-50: #f5f7fa;
+  --color-support-100: #e5e9f1;
+  --color-support-200: #cad3e2;
+  --color-support-300: #a3b2cc;
+  --color-support-400: #758cb3;
+  --color-support-500: #556f9b;
+  --color-support-600: #455a7d;
+  --color-support-700: #384966;
+  --color-support-800: #2f3d56;
+  --color-support-900: #263245;
 }
 
 @theme inline {
@@ -40,6 +73,39 @@
   --color-paper-50: var(--color-paper-50);
   --color-paper-100: var(--color-paper-100);
   --color-paper-200: var(--color-paper-200);
+
+  --color-accent-50: var(--color-accent-50);
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+
+  --color-secondary-50: var(--color-secondary-50);
+  --color-secondary-100: var(--color-secondary-100);
+  --color-secondary-200: var(--color-secondary-200);
+  --color-secondary-300: var(--color-secondary-300);
+  --color-secondary-400: var(--color-secondary-400);
+  --color-secondary-500: var(--color-secondary-500);
+  --color-secondary-600: var(--color-secondary-600);
+  --color-secondary-700: var(--color-secondary-700);
+  --color-secondary-800: var(--color-secondary-800);
+  --color-secondary-900: var(--color-secondary-900);
+
+  --color-support-50: var(--color-support-50);
+  --color-support-100: var(--color-support-100);
+  --color-support-200: var(--color-support-200);
+  --color-support-300: var(--color-support-300);
+  --color-support-400: var(--color-support-400);
+  --color-support-500: var(--color-support-500);
+  --color-support-600: var(--color-support-600);
+  --color-support-700: var(--color-support-700);
+  --color-support-800: var(--color-support-800);
+  --color-support-900: var(--color-support-900);
 }
 
 body {
@@ -57,6 +123,49 @@ body {
 }
 .sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Basic typography for admin-authored HTML content on CMS pages */
+.cms-content {
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+.cms-content p {
+  margin: 0 0 1rem;
+}
+.cms-content h2 {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-brand-900);
+}
+.cms-content h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-brand-900);
+}
+.cms-content a {
+  color: var(--color-accent-600);
+  text-decoration: underline;
+}
+.cms-content ul,
+.cms-content ol {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+}
+.cms-content li {
+  margin-bottom: 0.25rem;
+}
+.cms-content img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 1rem 0;
+}
+.cms-content strong {
+  font-weight: 600;
+  color: var(--color-brand-900);
 }
 
 /* Let PDF thumbnail canvases shrink/grow to fit their card instead of

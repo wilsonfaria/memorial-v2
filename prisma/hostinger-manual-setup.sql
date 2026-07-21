@@ -113,3 +113,73 @@ VALUES
   (UUID(), '39540afd142a5f83527102c4ad009de059a6a67aa494ddcf9cfc07dea564d726', NOW(3), '20260720140127_init', NULL, NULL, NOW(3), 1),
   (UUID(), 'bbf187bcc762e67cb877d4b854e2a40cd28adc070bcb28fe759214985661aebc', NOW(3), '20260720142701_add_admin_user', NULL, NULL, NOW(3), 1),
   (UUID(), 'd47af22f5796ac1563982567075f95214a3181993160cd8bc6724883571a77eb', NOW(3), '20260720145552_add_site_settings', NULL, NULL, NOW(3), 1);
+
+-- ============================================================
+-- PARTE 2 — rodar depois, só se as 3 migrações acima já tiverem
+-- sido aplicadas em produção anteriormente (não roda a parte 1 de novo).
+-- ============================================================
+
+-- ============================================================
+-- Migration: 20260720170000_add_user_email_reset_tokens
+-- ============================================================
+ALTER TABLE `admin_users` ADD COLUMN `name` VARCHAR(191) NULL;
+ALTER TABLE `admin_users` ADD COLUMN `email` VARCHAR(191) NULL;
+
+UPDATE `admin_users` SET `name` = `username`, `email` = CONCAT(`username`, '@localhost') WHERE `email` IS NULL;
+
+ALTER TABLE `admin_users` MODIFY COLUMN `name` VARCHAR(191) NOT NULL;
+ALTER TABLE `admin_users` MODIFY COLUMN `email` VARCHAR(191) NOT NULL;
+
+CREATE UNIQUE INDEX `admin_users_email_key` ON `admin_users`(`email`);
+
+CREATE TABLE `password_reset_tokens` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `tokenHash` VARCHAR(191) NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `usedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `password_reset_tokens_tokenHash_key`(`tokenHash`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `password_reset_tokens` ADD CONSTRAINT `password_reset_tokens_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `admin_users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ============================================================
+-- Migration: 20260720202147_add_sponsors_and_analytics
+-- ============================================================
+CREATE TABLE `sponsors` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `logoUrl` VARCHAR(191) NOT NULL,
+    `linkUrl` VARCHAR(191) NULL,
+    `placement` ENUM('SIDEBAR', 'FOOTER', 'BOTH') NOT NULL DEFAULT 'BOTH',
+    `order` INTEGER NOT NULL DEFAULT 0,
+    `active` BOOLEAN NOT NULL DEFAULT true,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `analytics_events` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` ENUM('EDITION_VIEW', 'EDITION_DOWNLOAD', 'SITE_VISIT') NOT NULL,
+    `editionId` INTEGER NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `analytics_events_type_createdAt_idx`(`type`, `createdAt`),
+    INDEX `analytics_events_editionId_idx`(`editionId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `analytics_events` ADD CONSTRAINT `analytics_events_editionId_fkey` FOREIGN KEY (`editionId`) REFERENCES `editions`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ============================================================
+-- Registra as 2 migrações novas como já aplicadas
+-- ============================================================
+INSERT INTO `_prisma_migrations`
+  (`id`, `checksum`, `finished_at`, `migration_name`, `logs`, `rolled_back_at`, `started_at`, `applied_steps_count`)
+VALUES
+  (UUID(), '05f2614d62f43ac6727a9fa2b6e4f38a7294e3bce4a241a013f33b4d428c4036', NOW(3), '20260720170000_add_user_email_reset_tokens', NULL, NULL, NOW(3), 1),
+  (UUID(), '2f7205879c613ab8eef7b7f4dbed3af9b4a8ee615d16ed672ca250d3353ebd32', NOW(3), '20260720202147_add_sponsors_and_analytics', NULL, NULL, NOW(3), 1);

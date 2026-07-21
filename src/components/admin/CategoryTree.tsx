@@ -74,7 +74,7 @@ function DecadeForm({ newspaperId }: { newspaperId: number }) {
 function DecadeNode({ decade }: { decade: DecadeData }) {
   const [open, setOpen] = useState(true);
   return (
-    <li className="rounded-lg border border-brand-100 bg-white">
+    <li className="rounded-lg border border-paper-200 bg-white">
       <div className="flex items-center justify-between px-3 py-2">
         <button
           onClick={() => setOpen((v) => !v)}
@@ -90,7 +90,7 @@ function DecadeNode({ decade }: { decade: DecadeData }) {
         />
       </div>
       {open && (
-        <div className="border-t border-brand-50 px-3 py-2 pl-6">
+        <div className="border-t border-paper-100 px-3 py-2 pl-6">
           <YearForm decadeId={decade.id} />
           <ul className="mt-2 flex flex-col gap-1">
             {decade.years.map((year) => (
@@ -139,7 +139,7 @@ function YearForm({ decadeId }: { decadeId: number }) {
 function YearNode({ year }: { year: YearData }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="rounded-lg border border-brand-50 bg-brand-50/40">
+    <li className="rounded-lg border border-paper-100 bg-brand-50/40">
       <div className="flex items-center justify-between px-3 py-1.5">
         <button
           onClick={() => setOpen((v) => !v)}
@@ -155,7 +155,7 @@ function YearNode({ year }: { year: YearData }) {
         />
       </div>
       {open && (
-        <div className="border-t border-brand-100/60 px-3 py-2 pl-6">
+        <div className="border-t border-paper-200/60 px-3 py-2 pl-6">
           <MonthForm yearId={year.id} />
           <ul className="mt-2 flex flex-col gap-1">
             {year.months.map((month) => (

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recordAnalyticsEvent } from "@/lib/analytics";
 
 export async function GET(
   _request: Request,
@@ -10,6 +11,8 @@ export async function GET(
   if (!edition) {
     return Response.json({ error: "Edição não encontrada" }, { status: 404 });
   }
+
+  await recordAnalyticsEvent("EDITION_VIEW", edition.id);
 
   return Response.json({
     id: edition.id,

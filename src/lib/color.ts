@@ -76,27 +76,20 @@ const LIGHTNESS_BY_STEP: Record<BrandStep, number> = {
   900: 21,
 };
 
-const SATURATION_FLOOR_BY_STEP: Record<BrandStep, number> = {
-  50: 0.55,
-  100: 0.65,
-  200: 0.75,
-  300: 0.85,
-  400: 0.95,
-  500: 1,
-  600: 1,
-  700: 1,
-  800: 1,
-  900: 1,
-};
-
 export function generateBrandScale(primaryHex: string): Record<BrandStep, string> {
   const base = hexToHsl(primaryHex);
+  // Saturation and lightness interact perceptually: the same saturation reads as far
+  // more vivid at mid-lightness (~50%) than near the light/dark extremes. Toning
+  // saturation down and holding it constant across the ramp keeps a soft/pastel base
+  // looking soft all the way to the darkest step, instead of turning vivid in the
+  // middle of the ramp where buttons and headings usually sit.
+  const saturation = Math.min(65, Math.max(15, base.s * 0.55));
   const scale = {} as Record<BrandStep, string>;
 
   for (const step of BRAND_STEPS) {
     scale[step] = hslToHex({
       h: base.h,
-      s: Math.min(100, base.s * SATURATION_FLOOR_BY_STEP[step] + 10),
+      s: saturation,
       l: LIGHTNESS_BY_STEP[step],
     });
   }

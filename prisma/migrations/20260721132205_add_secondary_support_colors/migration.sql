@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `site_settings` ADD COLUMN `secondaryColor` VARCHAR(191) NOT NULL DEFAULT '#A8E6CF',
+    ADD COLUMN `supportColor` VARCHAR(191) NOT NULL DEFAULT '#AEDDF7';

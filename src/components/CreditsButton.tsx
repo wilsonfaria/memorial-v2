@@ -11,7 +11,7 @@ export default function CreditsButton({ text }: { text: string }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border border-brand-100 bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-sm backdrop-blur hover:border-brand-300 hover:text-brand-700"
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full border border-paper-200 bg-white/90 px-3 py-1.5 text-xs text-slate-500 shadow-sm backdrop-blur hover:border-brand-300 hover:text-brand-700"
         title="Créditos e direitos autorais"
       >
         <Copyright size={13} />

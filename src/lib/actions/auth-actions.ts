@@ -1,15 +1,28 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   clearSessionCookie,
+  generatePasswordResetToken,
+  getSession,
   hashPassword,
+  hashPasswordResetToken,
   setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
+import { sendMail } from "@/lib/mailer";
 
-export type ActionState = { error?: string } | undefined;
+async function requireSession() {
+  const session = await getSession();
+  if (!session) redirect("/admin/login");
+  return session;
+}
+
+export type ActionState = { error?: string; success?: string } | undefined;
+
+const RESET_TOKEN_DURATION_MS = 1000 * 60 * 60; // 1 hour
 
 export async function createMasterUserAction(
   _prevState: ActionState,
@@ -20,12 +33,20 @@ export async function createMasterUserAction(
     return { error: "Já existe um usuário administrador cadastrado." };
   }
 
+  const name = String(formData.get("name") ?? "").trim();
   const username = String(formData.get("username") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
+  if (name.length < 2) {
+    return { error: "Informe o nome do administrador." };
+  }
   if (username.length < 3) {
     return { error: "O usuário deve ter ao menos 3 caracteres." };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Informe um email válido." };
   }
   if (password.length < 8) {
     return { error: "A senha deve ter ao menos 8 caracteres." };
@@ -36,7 +57,7 @@ export async function createMasterUserAction(
 
   const passwordHash = await hashPassword(password);
   const user = await prisma.adminUser.create({
-    data: { username, passwordHash },
+    data: { name, username, email, passwordHash },
   });
 
   await setSessionCookie({ sub: String(user.id), username: user.username });
@@ -62,4 +83,163 @@ export async function loginAction(
 export async function logoutAction() {
   await clearSessionCookie();
   redirect("/admin/login");
+}
+
+export async function createUserAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireSession();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (name.length < 2) return { error: "Informe o nome do usuário." };
+  if (username.length < 3) return { error: "O usuário deve ter ao menos 3 caracteres." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Informe um email válido." };
+  if (password.length < 8) return { error: "A senha deve ter ao menos 8 caracteres." };
+
+  const existing = await prisma.adminUser.findFirst({
+    where: { OR: [{ username }, { email }] },
+  });
+  if (existing) {
+    return { error: "Já existe um usuário com esse nome de usuário ou email." };
+  }
+
+  const passwordHash = await hashPassword(password);
+  await prisma.adminUser.create({ data: { name, username, email, passwordHash } });
+
+  revalidatePath("/admin/usuarios");
+  return { success: "Usuário criado com sucesso." };
+}
+
+export async function updateUserAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await requireSession();
+
+  const id = Number(formData.get("id"));
+  const name = String(formData.get("name") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (name.length < 2) return { error: "Informe o nome do usuário." };
+  if (username.length < 3) return { error: "O usuário deve ter ao menos 3 caracteres." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Informe um email válido." };
+
+  const conflict = await prisma.adminUser.findFirst({
+    where: { id: { not: id }, OR: [{ username }, { email }] },
+  });
+  if (conflict) {
+    return { error: "Já existe outro usuário com esse nome de usuário ou email." };
+  }
+
+  const user = await prisma.adminUser.update({
+    where: { id },
+    data: { name, username, email },
+  });
+
+  if (String(user.id) === session.sub) {
+    await setSessionCookie({ sub: String(user.id), username: user.username });
+  }
+
+  revalidatePath("/admin/usuarios");
+  return { success: "Usuário atualizado com sucesso." };
+}
+
+export async function deleteUserAction(formData: FormData) {
+  const session = await requireSession();
+  const id = Number(formData.get("id"));
+
+  if (String(id) === session.sub) {
+    return;
+  }
+
+  const totalUsers = await prisma.adminUser.count();
+  if (totalUsers <= 1) {
+    return;
+  }
+
+  await prisma.adminUser.delete({ where: { id } });
+  revalidatePath("/admin/usuarios");
+}
+
+export async function requestPasswordResetAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const genericSuccess = {
+    success: "Se existir uma conta com esse email, enviamos um link de redefinição de senha.",
+  };
+
+  if (!email) return { error: "Informe um email." };
+
+  const user = await prisma.adminUser.findUnique({ where: { email } });
+  if (!user) {
+    // Do not reveal whether the email exists.
+    return genericSuccess;
+  }
+
+  const { rawToken, tokenHash } = generatePasswordResetToken();
+  await prisma.passwordResetToken.create({
+    data: {
+      tokenHash,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_DURATION_MS),
+    },
+  });
+
+  const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const resetUrl = `${baseUrl}/admin/redefinir-senha/${rawToken}`;
+
+  try {
+    await sendMail({
+      to: user.email,
+      subject: "Redefinição de senha — Memorial do Jornal",
+      html: `
+        <p>Olá, ${user.name}.</p>
+        <p>Recebemos uma solicitação para redefinir sua senha de acesso à administração do Memorial do Jornal.</p>
+        <p><a href="${resetUrl}">Clique aqui para definir uma nova senha</a> (o link expira em 1 hora).</p>
+        <p>Se você não solicitou isso, ignore este email.</p>
+      `,
+    });
+  } catch {
+    return {
+      error:
+        "Não foi possível enviar o email agora. Verifique a configuração de SMTP em Configurações.",
+    };
+  }
+
+  return genericSuccess;
+}
+
+export async function resetPasswordAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (password.length < 8) return { error: "A senha deve ter ao menos 8 caracteres." };
+  if (password !== confirmPassword) return { error: "As senhas não coincidem." };
+
+  const tokenHash = hashPasswordResetToken(token);
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    return { error: "Este link de redefinição é inválido ou expirou. Solicite um novo." };
+  }
+
+  const passwordHash = await hashPassword(password);
+  await prisma.$transaction([
+    prisma.adminUser.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ]);
+
+  return { success: "Senha redefinida com sucesso. Você já pode entrar com a nova senha." };
 }

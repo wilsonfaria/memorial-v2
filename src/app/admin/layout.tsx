@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LogOut, Newspaper, FolderTree, FileText, UploadCloud, Database, Palette } from "lucide-react";
+import { LogOut, Newspaper, FolderTree, FileText, UploadCloud, Database, Palette, Users, Handshake, BarChart3, Files } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/auth-actions";
 
@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="flex min-h-screen flex-col bg-brand-50">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-brand-100 bg-white px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-paper-200 bg-white px-4">
         <div className="flex items-center gap-6">
           <Link href="/admin" className="text-sm font-semibold text-brand-900">
             Administração · Memorial
@@ -31,11 +31,23 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <AdminNavLink href="/admin/upload" icon={<UploadCloud size={14} />}>
               Upload em massa
             </AdminNavLink>
+            <AdminNavLink href="/admin/patrocinadores" icon={<Handshake size={14} />}>
+              Patrocinadores
+            </AdminNavLink>
+            <AdminNavLink href="/admin/paginas" icon={<Files size={14} />}>
+              Páginas
+            </AdminNavLink>
+            <AdminNavLink href="/admin/relatorios" icon={<BarChart3 size={14} />}>
+              Relatórios
+            </AdminNavLink>
             <AdminNavLink href="/admin/aparencia" icon={<Palette size={14} />}>
               Aparência
             </AdminNavLink>
             <AdminNavLink href="/admin/configuracoes" icon={<Database size={14} />}>
               Configurações
+            </AdminNavLink>
+            <AdminNavLink href="/admin/usuarios" icon={<Users size={14} />}>
+              Usuários
             </AdminNavLink>
           </nav>
         </div>

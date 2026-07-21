@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, type ActionState } from "@/lib/actions/auth-actions";
 
@@ -37,6 +38,13 @@ export default function LoginForm() {
       >
         {pending ? "Entrando..." : "Entrar"}
       </button>
+
+      <Link
+        href="/admin/esqueci-senha"
+        className="text-center text-xs text-brand-600 underline hover:text-brand-700"
+      >
+        Esqueci minha senha
+      </Link>
     </form>
   );
 }

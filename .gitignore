@@ -45,4 +45,6 @@ next-env.d.ts
 # runtime data (not part of the deployable source)
 /storage/pdfs
 /config/db-config.json
+/config/smtp-config.json
+/public/uploads
 public/pdf.worker.min.js

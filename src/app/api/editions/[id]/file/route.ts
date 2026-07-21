@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { prisma } from "@/lib/prisma";
 import { absolutePdfPath } from "@/lib/storage";
+import { recordAnalyticsEvent } from "@/lib/analytics";
 
 export async function GET(
   request: Request,
@@ -31,6 +32,9 @@ export async function GET(
   }
 
   const isDownload = new URL(request.url).searchParams.get("download") != null;
+  if (isDownload) {
+    await recordAnalyticsEvent("EDITION_DOWNLOAD", edition.id);
+  }
   const fileName = `${edition.title.replace(/[^\w\-À-ÿ ]/g, "")}.pdf`;
 
   const webStream = Readable.toWeb(

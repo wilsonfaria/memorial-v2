@@ -15,7 +15,7 @@ export default async function AdminNewspapersPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-xl font-semibold text-brand-900">Jornais</h1>
 
-      <div className="mb-8 rounded-xl border border-brand-100 bg-white p-4">
+      <div className="mb-8 rounded-xl border border-paper-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-700">Novo jornal</h2>
         <NewspaperForm />
       </div>
@@ -27,7 +27,7 @@ export default async function AdminNewspapersPage() {
         {newspapers.map((n) => (
           <div
             key={n.id}
-            className="flex items-center justify-between rounded-lg border border-brand-100 bg-white px-4 py-3"
+            className="flex items-center justify-between rounded-lg border border-paper-200 bg-white px-4 py-3"
           >
             <div>
               <p className="text-sm font-medium text-slate-700">{n.name}</p>

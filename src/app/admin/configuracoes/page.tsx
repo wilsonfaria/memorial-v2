@@ -1,10 +1,13 @@
 import { getEffectiveDbConfig } from "@/lib/db-config";
+import { readSmtpConfig } from "@/lib/smtp-config";
 import DbConfigForm from "./DbConfigForm";
+import SmtpConfigForm from "./SmtpConfigForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
   const current = getEffectiveDbConfig();
+  const smtpCurrent = readSmtpConfig();
 
   return (
     <div className="mx-auto max-w-xl">
@@ -15,7 +18,7 @@ export default async function AdminSettingsPage() {
         é salvo e o site continua funcionando normalmente com a conexão atual.
       </p>
 
-      <div className="rounded-xl border border-brand-100 bg-white p-4">
+      <div className="rounded-xl border border-paper-200 bg-white p-4">
         <DbConfigForm initial={current} />
       </div>
 
@@ -23,6 +26,16 @@ export default async function AdminSettingsPage() {
         Observação: esta tela troca a conexão usada pelo site em tempo real. Ela não executa
         migrações — o banco de destino já precisa ter as tabelas criadas (via <code>prisma migrate deploy</code>).
       </p>
+
+      <h1 className="mb-2 mt-10 text-xl font-semibold text-brand-900">Configurações de email (SMTP)</h1>
+      <p className="mb-6 text-sm text-slate-500">
+        Usado para enviar os emails de redefinição de senha dos usuários administradores. A conexão
+        é testada (login real no servidor) antes de salvar.
+      </p>
+
+      <div className="rounded-xl border border-paper-200 bg-white p-4">
+        <SmtpConfigForm initial={smtpCurrent} />
+      </div>
     </div>
   );
 }

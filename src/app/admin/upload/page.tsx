@@ -15,7 +15,7 @@ export default async function AdminUploadPage() {
         do nome do arquivo.
       </p>
 
-      <div className="rounded-xl border border-brand-100 bg-white p-4">
+      <div className="rounded-xl border border-paper-200 bg-white p-4">
         <UploadForm newspapers={newspapers} />
       </div>
     </div>

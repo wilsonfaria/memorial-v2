@@ -145,11 +145,11 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
             </button>
           </div>
 
-          <div className="max-h-80 overflow-y-auto rounded-lg border border-brand-100">
+          <div className="max-h-80 overflow-y-auto rounded-lg border border-paper-200">
             {items.map((item, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between border-b border-brand-50 px-3 py-1.5 text-xs last:border-b-0"
+                className="flex items-center justify-between border-b border-paper-100 px-3 py-1.5 text-xs last:border-b-0"
               >
                 <span className="min-w-0 flex-1 truncate text-slate-600">{item.relativePath}</span>
                 {item.editionNumber != null && (

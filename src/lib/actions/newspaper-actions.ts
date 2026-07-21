@@ -2,8 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import {
+  ensureNewspaperUploadDir,
+  deleteNewspaperLogo,
+  NEWSPAPER_UPLOAD_DIR,
+  NEWSPAPER_PUBLIC_PREFIX,
+} from "@/lib/newspaper-storage";
 
 async function requireSession() {
   const session = await getSession();
@@ -23,7 +31,7 @@ function slugify(input: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export type ActionState = { error?: string } | undefined;
+export type ActionState = { error?: string; success?: string } | undefined;
 
 export async function createNewspaperAction(
   _prevState: ActionState,
@@ -58,4 +66,53 @@ export async function deleteNewspaperAction(formData: FormData) {
   await prisma.newspaper.delete({ where: { id } });
   revalidatePath("/admin/jornais");
   revalidatePath("/");
+}
+
+/** Updates the site's primary identity (name, tagline, logo) — the "site identity" panel in Aparência. */
+export async function updateSiteIdentityAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireSession();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const tagline = String(formData.get("tagline") ?? "").trim();
+  const logo = formData.get("logo");
+
+  if (name.length < 2) {
+    return { error: "Informe um nome válido para o jornal." };
+  }
+
+  const existing = await prisma.newspaper.findFirst({ orderBy: { id: "asc" } });
+
+  let logoUrl = existing?.logoUrl ?? null;
+  if (logo instanceof File && logo.size > 0) {
+    if (!logo.type.startsWith("image/")) {
+      return { error: "A logo deve ser uma imagem." };
+    }
+    await ensureNewspaperUploadDir();
+    const ext = (logo.type.split("/")[1] || "png").replace("svg+xml", "svg");
+    const fileName = `logo-${Date.now()}.${ext}`;
+    const bytes = Buffer.from(await logo.arrayBuffer());
+    await writeFile(path.join(NEWSPAPER_UPLOAD_DIR, fileName), bytes);
+    if (existing?.logoUrl) await deleteNewspaperLogo(existing.logoUrl);
+    logoUrl = `${NEWSPAPER_PUBLIC_PREFIX}/${fileName}`;
+  }
+
+  if (existing) {
+    await prisma.newspaper.update({
+      where: { id: existing.id },
+      data: { name, tagline: tagline || null, logoUrl },
+    });
+  } else {
+    const slug = slugify(name);
+    await prisma.newspaper.create({
+      data: { name, slug, tagline: tagline || null, logoUrl },
+    });
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/aparencia");
+  revalidatePath("/admin/jornais");
+  return { success: "Identidade do site atualizada." };
 }

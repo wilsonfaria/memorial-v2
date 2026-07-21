@@ -33,7 +33,7 @@ export default async function AdminDashboardPage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-brand-100 bg-white p-4">
+    <div className="rounded-xl border border-paper-200 bg-white p-4">
       <p className="text-2xl font-semibold text-brand-800">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
     </div>
@@ -54,7 +54,7 @@ function AdminCard({
   return (
     <Link
       href={href}
-      className="flex flex-col gap-2 rounded-xl border border-brand-100 bg-white p-4 hover:border-brand-300 hover:shadow-sm"
+      className="flex flex-col gap-2 rounded-xl border border-paper-200 bg-white p-4 hover:border-brand-300 hover:shadow-sm"
     >
       <span className="text-brand-500">{icon}</span>
       <span className="text-sm font-medium text-slate-700">{title}</span>

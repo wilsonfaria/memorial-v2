@@ -90,3 +90,17 @@ export async function deleteEditionAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/edicoes");
 }
+
+export async function bulkDeleteEditionsAction(ids: number[]) {
+  await requireSession();
+  if (ids.length === 0) return { error: "Nenhuma edição selecionada." };
+
+  const editions = await prisma.edition.findMany({ where: { id: { in: ids } } });
+  await Promise.all(editions.map((e) => deletePdfFile(e.pdfPath)));
+  await prisma.edition.deleteMany({ where: { id: { in: ids } } });
+
+  revalidatePath("/admin/edicoes");
+  revalidatePath("/");
+  revalidatePath("/edicoes");
+  return { success: `${editions.length} edição(ões) removida(s).` };
+}

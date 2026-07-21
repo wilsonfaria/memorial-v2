@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 
 export const SESSION_COOKIE = "memorial_admin_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -64,4 +65,15 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+/** Generates a random reset token; returns the raw token (sent by email) and its hash (stored in DB). */
+export function generatePasswordResetToken() {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  return { rawToken, tokenHash };
+}
+
+export function hashPasswordResetToken(rawToken: string) {
+  return crypto.createHash("sha256").update(rawToken).digest("hex");
 }

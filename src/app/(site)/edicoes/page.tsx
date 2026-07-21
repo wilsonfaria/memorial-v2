@@ -1,21 +1,92 @@
-import EditionsView from "@/components/EditionsView";
-import { getAllEditions } from "@/lib/data";
+import Breadcrumb from "@/components/Breadcrumb";
+import PublicEditionsFilterBar from "@/components/PublicEditionsFilterBar";
+import EditionResultRow from "@/components/EditionResultRow";
+import { getFilteredEditionsPaged, getNavigationTree } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-export default async function AllEditionsPage() {
-  const editions = await getAllEditions();
+const PAGE_SIZE = 20;
+
+export default async function AllEditionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ decada?: string; ano?: string; mes?: string; q?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+  const page = Math.max(1, Number(params.page) || 1);
+
+  const [tree, { editions, total }] = await Promise.all([
+    getNavigationTree(),
+    getFilteredEditionsPaged(
+      {
+        decade: params.decada ? Number(params.decada) : undefined,
+        year: params.ano ? Number(params.ano) : undefined,
+        month: params.mes ? Number(params.mes) : undefined,
+        q: params.q,
+      },
+      page,
+      PAGE_SIZE
+    ),
+  ]);
+
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const activeParams = new URLSearchParams();
+  if (params.decada) activeParams.set("decada", params.decada);
+  if (params.ano) activeParams.set("ano", params.ano);
+  if (params.mes) activeParams.set("mes", params.mes);
+  if (params.q) activeParams.set("q", params.q);
+
+  function pageHref(p: number) {
+    const sp = new URLSearchParams(activeParams);
+    sp.set("page", String(p));
+    return `/edicoes?${sp.toString()}`;
+  }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-brand-900">Todas as edições</h1>
-        <p className="text-sm text-slate-500">
-          {editions.length} edições digitalizadas no acervo.
-        </p>
-      </div>
+    <>
+      <Breadcrumb items={[{ label: "Início", href: "/" }, { label: "Todas as edições" }]} />
 
-      <EditionsView editions={editions} defaultMode="grid" />
-    </div>
+      <div className="mx-auto flex max-w-6xl gap-6 px-6 py-6">
+        <aside className="w-60 shrink-0">
+          <PublicEditionsFilterBar tree={tree} />
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex items-baseline justify-between gap-4">
+            <h1 className="text-xl font-semibold text-brand-900">Todas as edições</h1>
+            <p className="shrink-0 text-xs text-slate-400">
+              {total === 0 ? "Nenhum resultado" : `${from} - ${to} de ${total}`}
+            </p>
+          </div>
+
+          {editions.length === 0 ? (
+            <p className="py-10 text-center text-sm text-slate-400">
+              Nenhuma edição encontrada com esses filtros.
+            </p>
+          ) : (
+            editions.map((edition) => <EditionResultRow key={edition.id} edition={edition} />)
+          )}
+
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <a
+                  key={p}
+                  href={pageHref(p)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium ${
+                    p === page ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-brand-50"
+                  }`}
+                >
+                  {p}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
