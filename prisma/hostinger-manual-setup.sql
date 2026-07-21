@@ -183,3 +183,75 @@ INSERT INTO `_prisma_migrations`
 VALUES
   (UUID(), '05f2614d62f43ac6727a9fa2b6e4f38a7294e3bce4a241a013f33b4d428c4036', NOW(3), '20260720170000_add_user_email_reset_tokens', NULL, NULL, NOW(3), 1),
   (UUID(), '2f7205879c613ab8eef7b7f4dbed3af9b4a8ee615d16ed672ca250d3353ebd32', NOW(3), '20260720202147_add_sponsors_and_analytics', NULL, NULL, NOW(3), 1);
+
+-- ============================================================
+-- PARTE 3 — rodar depois, só se as migrações da Parte 1 e Parte 2
+-- já tiverem sido aplicadas em produção anteriormente.
+-- ============================================================
+
+-- ============================================================
+-- Migration: 20260721115742_add_accent_color
+-- ============================================================
+ALTER TABLE `site_settings` ADD COLUMN `accentColor` VARCHAR(191) NOT NULL DEFAULT '#d9822b';
+
+-- ============================================================
+-- Migration: 20260721120645_add_pages
+-- ============================================================
+CREATE TABLE `pages` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `slug` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `body` LONGTEXT NOT NULL,
+    `coverImageUrl` VARCHAR(191) NULL,
+    `published` BOOLEAN NOT NULL DEFAULT false,
+    `showInMenu` BOOLEAN NOT NULL DEFAULT true,
+    `menuLabel` VARCHAR(191) NULL,
+    `menuOrder` INTEGER NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `pages_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `page_images` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `pageId` INTEGER NOT NULL,
+    `url` VARCHAR(191) NOT NULL,
+    `order` INTEGER NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `page_images` ADD CONSTRAINT `page_images_pageId_fkey` FOREIGN KEY (`pageId`) REFERENCES `pages`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- ============================================================
+-- Migration: 20260721124737_add_social_links
+-- ============================================================
+ALTER TABLE `site_settings` ADD COLUMN `facebookUrl` VARCHAR(191) NULL,
+    ADD COLUMN `instagramUrl` VARCHAR(191) NULL,
+    ADD COLUMN `xUrl` VARCHAR(191) NULL;
+
+-- ============================================================
+-- Migration: 20260721132205_add_secondary_support_colors
+-- ============================================================
+ALTER TABLE `site_settings` ADD COLUMN `secondaryColor` VARCHAR(191) NOT NULL DEFAULT '#A8E6CF',
+    ADD COLUMN `supportColor` VARCHAR(191) NOT NULL DEFAULT '#AEDDF7';
+
+-- ============================================================
+-- Migration: 20260721141830_add_tagline_background_color
+-- ============================================================
+ALTER TABLE `newspapers` ADD COLUMN `tagline` VARCHAR(191) NULL;
+ALTER TABLE `site_settings` ADD COLUMN `backgroundColor` VARCHAR(191) NOT NULL DEFAULT '#f7f8fb';
+
+-- ============================================================
+-- Registra as 5 migrações novas como já aplicadas
+-- ============================================================
+INSERT INTO `_prisma_migrations`
+  (`id`, `checksum`, `finished_at`, `migration_name`, `logs`, `rolled_back_at`, `started_at`, `applied_steps_count`)
+VALUES
+  (UUID(), 'b5a87be09c8fed76ca6d3a8cc85ce2e43f0a35618a5e8d99c02285c1292c5757', NOW(3), '20260721115742_add_accent_color', NULL, NULL, NOW(3), 1),
+  (UUID(), '786041768143efdd1d94e90d18e4bccfe39dc91cbb2bc911a578c59834e77d68', NOW(3), '20260721120645_add_pages', NULL, NULL, NOW(3), 1),
+  (UUID(), '379c76729a0cbeb9a5c77176a11e022eec0c3a18eb82de79537b2377c9412939', NOW(3), '20260721124737_add_social_links', NULL, NULL, NOW(3), 1),
+  (UUID(), 'dde99e467ec23ac9b6f289b6c7afe769f2ed48a2c43d2dc220486fceb280f5c9', NOW(3), '20260721132205_add_secondary_support_colors', NULL, NULL, NOW(3), 1),
+  (UUID(), 'f4e1652d88e08270ba6d1be7430f4e3d266161ffca1b2237e3d6826c528daca8', NOW(3), '20260721141830_add_tagline_background_color', NULL, NULL, NOW(3), 1);

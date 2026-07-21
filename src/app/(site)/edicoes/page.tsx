@@ -49,8 +49,8 @@ export default async function AllEditionsPage({
     <>
       <Breadcrumb items={[{ label: "Início", href: "/" }, { label: "Todas as edições" }]} />
 
-      <div className="mx-auto flex max-w-6xl gap-6 px-6 py-6">
-        <aside className="w-60 shrink-0">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6 md:flex-row">
+        <aside className="w-full md:w-60 md:shrink-0">
           <PublicEditionsFilterBar tree={tree} />
         </aside>
 
