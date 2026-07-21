@@ -255,3 +255,23 @@ VALUES
   (UUID(), '379c76729a0cbeb9a5c77176a11e022eec0c3a18eb82de79537b2377c9412939', NOW(3), '20260721124737_add_social_links', NULL, NULL, NOW(3), 1),
   (UUID(), 'dde99e467ec23ac9b6f289b6c7afe769f2ed48a2c43d2dc220486fceb280f5c9', NOW(3), '20260721132205_add_secondary_support_colors', NULL, NULL, NOW(3), 1),
   (UUID(), 'f4e1652d88e08270ba6d1be7430f4e3d266161ffca1b2237e3d6826c528daca8', NOW(3), '20260721141830_add_tagline_background_color', NULL, NULL, NOW(3), 1);
+
+-- ============================================================
+-- PARTE 4 — rodar depois, só se as Partes 1, 2 e 3 já tiverem sido
+-- aplicadas em produção anteriormente.
+-- ============================================================
+
+-- ============================================================
+-- Migration: 20260721205708_add_mfa_fields
+-- ============================================================
+ALTER TABLE `admin_users` ADD COLUMN `mfaBackupCodes` TEXT NULL,
+    ADD COLUMN `mfaEnabled` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `mfaSecret` VARCHAR(191) NULL;
+
+-- ============================================================
+-- Registra a migração nova como já aplicada
+-- ============================================================
+INSERT INTO `_prisma_migrations`
+  (`id`, `checksum`, `finished_at`, `migration_name`, `logs`, `rolled_back_at`, `started_at`, `applied_steps_count`)
+VALUES
+  (UUID(), '2be5d1c32384f00dfe3e96f83b51f439848fb17afd450e6321908164e7bfff2c', NOW(3), '20260721205708_add_mfa_fields', NULL, NULL, NOW(3), 1);
