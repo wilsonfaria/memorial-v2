@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensureStorageDir } from "@/lib/storage";
+import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -24,6 +25,15 @@ export async function POST(request: Request) {
   }
   if (!(file instanceof File) || file.size === 0) {
     return Response.json({ error: "Arquivo ausente" }, { status: 400 });
+  }
+  if (file.type !== "application/pdf") {
+    return Response.json({ error: "O arquivo deve ser um PDF." }, { status: 400 });
+  }
+  if (file.size > MAX_PDF_BYTES) {
+    return Response.json(
+      { error: `O arquivo deve ter no máximo ${formatMaxSize(MAX_PDF_BYTES)}.` },
+      { status: 400 }
+    );
   }
   if (!title) {
     return Response.json({ error: "Título ausente" }, { status: 400 });

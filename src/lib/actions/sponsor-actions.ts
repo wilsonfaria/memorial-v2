@@ -7,6 +7,7 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensureSponsorUploadDir, deleteSponsorLogo, SPONSOR_UPLOAD_DIR, SPONSOR_PUBLIC_PREFIX } from "@/lib/sponsor-storage";
+import { MAX_IMAGE_BYTES, formatMaxSize } from "@/lib/upload-limits";
 import type { SponsorPlacement } from "@/generated/prisma/client";
 
 async function requireSession() {
@@ -49,6 +50,9 @@ export async function createSponsorAction(
   if (!file.type.startsWith("image/")) {
     return { error: "O arquivo deve ser uma imagem." };
   }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { error: `O logo deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+  }
 
   const logoUrl = await saveLogoFile(file);
 
@@ -85,6 +89,9 @@ export async function updateSponsorAction(
   if (file instanceof File && file.size > 0) {
     if (!file.type.startsWith("image/")) {
       return { error: "O arquivo deve ser uma imagem." };
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      return { error: `O logo deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
     }
     logoUrl = await saveLogoFile(file);
     await deleteSponsorLogo(existing.logoUrl);

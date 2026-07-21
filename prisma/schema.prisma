@@ -74,12 +74,18 @@ model Sponsor {
 }
 
 model AdminUser {
-  id           Int      @id @default(autoincrement())
-  name         String
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  name            String
+  username        String   @unique
+  email           String   @unique
+  passwordHash    String
+  createdAt       DateTime @default(now())
+
+  /// TOTP secret, encrypted at rest with SETTINGS_ENCRYPTION_KEY (see src/lib/mfa.ts). Null while MFA isn't enabled.
+  mfaEnabled      Boolean  @default(false)
+  mfaSecret       String?
+  /// JSON array of sha256-hashed one-time backup codes.
+  mfaBackupCodes  String?  @db.Text
 
   resetTokens PasswordResetToken[]
 

@@ -7,6 +7,7 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensureStorageDir, deletePdfFile } from "@/lib/storage";
+import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 async function requireSession() {
   const session = await getSession();
@@ -36,6 +37,9 @@ export async function createEditionAction(
   }
   if (file.type !== "application/pdf") {
     return { error: "O arquivo deve ser um PDF." };
+  }
+  if (file.size > MAX_PDF_BYTES) {
+    return { error: `O arquivo deve ter no máximo ${formatMaxSize(MAX_PDF_BYTES)}.` };
   }
 
   const month = await prisma.month.findUnique({

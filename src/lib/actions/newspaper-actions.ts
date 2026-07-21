@@ -12,6 +12,7 @@ import {
   NEWSPAPER_UPLOAD_DIR,
   NEWSPAPER_PUBLIC_PREFIX,
 } from "@/lib/newspaper-storage";
+import { MAX_IMAGE_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 async function requireSession() {
   const session = await getSession();
@@ -89,6 +90,9 @@ export async function updateSiteIdentityAction(
   if (logo instanceof File && logo.size > 0) {
     if (!logo.type.startsWith("image/")) {
       return { error: "A logo deve ser uma imagem." };
+    }
+    if (logo.size > MAX_IMAGE_BYTES) {
+      return { error: `A logo deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
     }
     await ensureNewspaperUploadDir();
     const ext = (logo.type.split("/")[1] || "png").replace("svg+xml", "svg");

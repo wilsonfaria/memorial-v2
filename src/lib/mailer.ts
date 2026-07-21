@@ -1,6 +1,16 @@
 import nodemailer from "nodemailer";
 import { readSmtpConfig, type SmtpConfig } from "@/lib/smtp-config";
 
+/** Escapes text interpolated into an HTML email body (e.g. a user-controlled name). */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function buildTransport(config: SmtpConfig) {
   return nodemailer.createTransport({
     host: config.host,

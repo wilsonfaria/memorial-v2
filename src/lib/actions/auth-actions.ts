@@ -12,7 +12,8 @@ import {
   setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
-import { sendMail } from "@/lib/mailer";
+import { sendMail, escapeHtml } from "@/lib/mailer";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 async function requireSession() {
   const session = await getSession();
@@ -23,6 +24,16 @@ async function requireSession() {
 export type ActionState = { error?: string; success?: string } | undefined;
 
 const RESET_TOKEN_DURATION_MS = 1000 * 60 * 60; // 1 hour
+
+const LOGIN_LIMIT_PER_USERNAME = 8;
+const LOGIN_LIMIT_PER_IP = 30;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+const RESET_LIMIT_PER_EMAIL = 3;
+const RESET_LIMIT_PER_IP = 15;
+const RESET_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+const TOO_MANY_ATTEMPTS_ERROR = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
 
 export async function createMasterUserAction(
   _prevState: ActionState,
@@ -70,6 +81,17 @@ export async function loginAction(
 ): Promise<ActionState> {
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+
+  const ip = await getClientIp();
+  const ipOk = consumeRateLimit(`login:ip:${ip}`, LOGIN_LIMIT_PER_IP, LOGIN_WINDOW_MS);
+  const userOk = consumeRateLimit(
+    `login:user:${username.toLowerCase()}`,
+    LOGIN_LIMIT_PER_USERNAME,
+    LOGIN_WINDOW_MS
+  );
+  if (!ipOk || !userOk) {
+    return { error: TOO_MANY_ATTEMPTS_ERROR };
+  }
 
   const user = await prisma.adminUser.findUnique({ where: { username } });
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
@@ -178,6 +200,18 @@ export async function requestPasswordResetAction(
 
   if (!email) return { error: "Informe um email." };
 
+  const ip = await getClientIp();
+  const ipOk = consumeRateLimit(`reset:ip:${ip}`, RESET_LIMIT_PER_IP, RESET_WINDOW_MS);
+  const emailOk = consumeRateLimit(
+    `reset:email:${email.toLowerCase()}`,
+    RESET_LIMIT_PER_EMAIL,
+    RESET_WINDOW_MS
+  );
+  if (!ipOk || !emailOk) {
+    // Same generic message — don't reveal that rate limiting kicked in specifically.
+    return genericSuccess;
+  }
+
   const user = await prisma.adminUser.findUnique({ where: { email } });
   if (!user) {
     // Do not reveal whether the email exists.
@@ -201,7 +235,7 @@ export async function requestPasswordResetAction(
       to: user.email,
       subject: "Redefinição de senha — Memorial do Jornal",
       html: `
-        <p>Olá, ${user.name}.</p>
+        <p>Olá, ${escapeHtml(user.name)}.</p>
         <p>Recebemos uma solicitação para redefinir sua senha de acesso à administração do Memorial do Jornal.</p>
         <p><a href="${resetUrl}">Clique aqui para definir uma nova senha</a> (o link expira em 1 hora).</p>
         <p>Se você não solicitou isso, ignore este email.</p>

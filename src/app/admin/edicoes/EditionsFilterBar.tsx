@@ -21,6 +21,7 @@ export default function EditionsFilterBar({
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
   }
 

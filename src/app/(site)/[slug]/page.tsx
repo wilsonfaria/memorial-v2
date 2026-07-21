@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import { getPublishedPageBySlug } from "@/lib/data";
+import { sanitizePageHtml } from "@/lib/sanitize-html";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function CmsPage({
 
         <h1 className="mb-6 text-2xl font-semibold text-brand-900">{page.title}</h1>
 
-        <div className="cms-content" dangerouslySetInnerHTML={{ __html: page.body }} />
+        <div className="cms-content" dangerouslySetInnerHTML={{ __html: sanitizePageHtml(page.body) }} />
 
         {page.images.length > 0 && (
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">

@@ -7,6 +7,8 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensurePageUploadDir, deletePageImageFile, PAGE_UPLOAD_DIR, PAGE_PUBLIC_PREFIX } from "@/lib/page-storage";
+import { sanitizePageHtml } from "@/lib/sanitize-html";
+import { MAX_IMAGE_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 async function requireSession() {
   const session = await getSession();
@@ -45,7 +47,7 @@ export async function createPageAction(
 
   const title = String(formData.get("title") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
+  const body = sanitizePageHtml(String(formData.get("body") ?? "").trim());
   const menuLabel = String(formData.get("menuLabel") ?? "").trim();
   const menuOrder = Number(formData.get("menuOrder") ?? 0);
   const showInMenu = formData.get("showInMenu") === "on";
@@ -64,6 +66,9 @@ export async function createPageAction(
   let coverImageUrl: string | null = null;
   if (coverImage instanceof File && coverImage.size > 0) {
     if (!coverImage.type.startsWith("image/")) return { error: "A capa deve ser uma imagem." };
+    if (coverImage.size > MAX_IMAGE_BYTES) {
+      return { error: `A capa deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+    }
     coverImageUrl = await saveImageFile(coverImage, "cover");
   }
 
@@ -94,7 +99,7 @@ export async function updatePageAction(
   const id = Number(formData.get("id"));
   const title = String(formData.get("title") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
+  const body = sanitizePageHtml(String(formData.get("body") ?? "").trim());
   const menuLabel = String(formData.get("menuLabel") ?? "").trim();
   const menuOrder = Number(formData.get("menuOrder") ?? 0);
   const showInMenu = formData.get("showInMenu") === "on";
@@ -117,6 +122,9 @@ export async function updatePageAction(
   let coverImageUrl = existing.coverImageUrl;
   if (coverImage instanceof File && coverImage.size > 0) {
     if (!coverImage.type.startsWith("image/")) return { error: "A capa deve ser uma imagem." };
+    if (coverImage.size > MAX_IMAGE_BYTES) {
+      return { error: `A capa deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+    }
     coverImageUrl = await saveImageFile(coverImage, "cover");
     if (existing.coverImageUrl) await deletePageImageFile(existing.coverImageUrl);
   }
@@ -138,6 +146,10 @@ export async function updatePageAction(
   const newFiles = galleryImages.filter(
     (f): f is File => f instanceof File && f.size > 0 && f.type.startsWith("image/")
   );
+  const oversizeFile = newFiles.find((f) => f.size > MAX_IMAGE_BYTES);
+  if (oversizeFile) {
+    return { error: `Cada imagem da galeria deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+  }
   if (newFiles.length > 0) {
     const currentMax = await prisma.pageImage.aggregate({
       where: { pageId: id },
