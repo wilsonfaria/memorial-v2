@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LogOut, Newspaper, FolderTree, FileText, UploadCloud, Database, Palette, Users, Handshake, BarChart3, Files } from "lucide-react";
+import { LogOut, Newspaper, FolderTree, FileText, UploadCloud, Database, Palette, Users, Handshake, BarChart3, Files, ShieldCheck } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/auth-actions";
 
@@ -53,6 +53,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500">{session.username}</span>
+          <Link
+            href="/admin/seguranca"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
+            title="Segurança da conta"
+          >
+            <ShieldCheck size={13} />
+            Segurança
+          </Link>
           <form action={logoutAction}>
             <button
               type="submit"

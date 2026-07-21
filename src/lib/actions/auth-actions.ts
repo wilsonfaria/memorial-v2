@@ -4,16 +4,20 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
+  clearMfaPendingCookie,
   clearSessionCookie,
   generatePasswordResetToken,
+  getMfaPendingUserId,
   getSession,
   hashPassword,
   hashPasswordResetToken,
+  setMfaPendingCookie,
   setSessionCookie,
   verifyPassword,
 } from "@/lib/auth";
 import { sendMail, escapeHtml } from "@/lib/mailer";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import { decryptMfaSecret, verifyBackupCode, verifyTotpToken } from "@/lib/mfa";
 
 async function requireSession() {
   const session = await getSession();
@@ -34,6 +38,10 @@ const RESET_LIMIT_PER_IP = 15;
 const RESET_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 const TOO_MANY_ATTEMPTS_ERROR = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+
+const MFA_VERIFY_LIMIT_PER_USER = 8;
+const MFA_VERIFY_LIMIT_PER_IP = 30;
+const MFA_VERIFY_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function createMasterUserAction(
   _prevState: ActionState,
@@ -98,6 +106,58 @@ export async function loginAction(
     return { error: "Usuário ou senha inválidos." };
   }
 
+  if (user.mfaEnabled) {
+    await setMfaPendingCookie(String(user.id));
+    redirect("/admin/verificar-mfa");
+  }
+
+  await setSessionCookie({ sub: String(user.id), username: user.username });
+  redirect("/admin");
+}
+
+export async function verifyMfaAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const userId = await getMfaPendingUserId();
+  if (!userId) {
+    return { error: "Sessão de login expirada. Faça login novamente." };
+  }
+
+  const ip = await getClientIp();
+  const ipOk = consumeRateLimit(`mfa:ip:${ip}`, MFA_VERIFY_LIMIT_PER_IP, MFA_VERIFY_WINDOW_MS);
+  const userOk = consumeRateLimit(`mfa:user:${userId}`, MFA_VERIFY_LIMIT_PER_USER, MFA_VERIFY_WINDOW_MS);
+  if (!ipOk || !userOk) {
+    return { error: TOO_MANY_ATTEMPTS_ERROR };
+  }
+
+  const code = String(formData.get("code") ?? "").trim();
+  const user = await prisma.adminUser.findUnique({ where: { id: Number(userId) } });
+
+  if (!user || !user.mfaEnabled || !user.mfaSecret) {
+    await clearMfaPendingCookie();
+    redirect("/admin/login");
+  }
+
+  const secret = decryptMfaSecret(user.mfaSecret);
+  let valid = code.length > 0 && verifyTotpToken(secret, code);
+
+  if (!valid && user.mfaBackupCodes) {
+    const remaining = verifyBackupCode(code, user.mfaBackupCodes);
+    if (remaining) {
+      valid = true;
+      await prisma.adminUser.update({
+        where: { id: user.id },
+        data: { mfaBackupCodes: JSON.stringify(remaining) },
+      });
+    }
+  }
+
+  if (!valid) {
+    return { error: "Código inválido." };
+  }
+
+  await clearMfaPendingCookie();
   await setSessionCookie({ sub: String(user.id), username: user.username });
   redirect("/admin");
 }

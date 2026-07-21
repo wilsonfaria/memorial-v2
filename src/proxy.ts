@@ -6,6 +6,7 @@ const PUBLIC_ADMIN_PATHS = [
   "/admin/setup",
   "/admin/esqueci-senha",
   "/admin/redefinir-senha",
+  "/admin/verificar-mfa",
 ];
 
 export async function proxy(request: NextRequest) {

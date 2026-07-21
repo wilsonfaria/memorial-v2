@@ -67,6 +67,56 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(token);
 }
 
+export const MFA_PENDING_COOKIE = "memorial_mfa_pending";
+const MFA_PENDING_DURATION_SECONDS = 5 * 60; // 5 minutes
+
+/**
+ * Short-lived token for the gap between "password verified" and "MFA code
+ * verified" — deliberately separate from the real session cookie so a user
+ * mid-MFA-challenge never holds a valid admin session.
+ */
+export async function createMfaPendingToken(userId: string) {
+  return new SignJWT({ sub: userId, purpose: "mfa-pending" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${MFA_PENDING_DURATION_SECONDS}s`)
+    .sign(getSecretKey());
+}
+
+export async function verifyMfaPendingToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecretKey());
+    if (payload.purpose !== "mfa-pending" || typeof payload.sub !== "string") return null;
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
+
+export async function setMfaPendingCookie(userId: string) {
+  const token = await createMfaPendingToken(userId);
+  const store = await cookies();
+  store.set(MFA_PENDING_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MFA_PENDING_DURATION_SECONDS,
+  });
+}
+
+export async function clearMfaPendingCookie() {
+  const store = await cookies();
+  store.delete(MFA_PENDING_COOKIE);
+}
+
+export async function getMfaPendingUserId(): Promise<string | null> {
+  const store = await cookies();
+  const token = store.get(MFA_PENDING_COOKIE)?.value;
+  if (!token) return null;
+  return verifyMfaPendingToken(token);
+}
+
 /** Generates a random reset token; returns the raw token (sent by email) and its hash (stored in DB). */
 export function generatePasswordResetToken() {
   const rawToken = crypto.randomBytes(32).toString("hex");
