@@ -1,8 +1,9 @@
 import path from "node:path";
 import { mkdir, rm } from "node:fs/promises";
+import { UPLOADS_ROOT } from "@/lib/uploads-root";
 
-export const PAGE_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "pages");
-export const PAGE_PUBLIC_PREFIX = "/uploads/pages";
+export const PAGE_UPLOAD_DIR = path.join(UPLOADS_ROOT, "pages");
+export const PAGE_PUBLIC_PREFIX = "/api/uploads/pages";
 
 export async function ensurePageUploadDir() {
   await mkdir(PAGE_UPLOAD_DIR, { recursive: true });

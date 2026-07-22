@@ -1,8 +1,9 @@
 import path from "node:path";
 import { mkdir, rm } from "node:fs/promises";
+import { UPLOADS_ROOT } from "@/lib/uploads-root";
 
-export const NEWSPAPER_UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "newspaper");
-export const NEWSPAPER_PUBLIC_PREFIX = "/uploads/newspaper";
+export const NEWSPAPER_UPLOAD_DIR = path.join(UPLOADS_ROOT, "newspaper");
+export const NEWSPAPER_PUBLIC_PREFIX = "/api/uploads/newspaper";
 
 export async function ensureNewspaperUploadDir() {
   await mkdir(NEWSPAPER_UPLOAD_DIR, { recursive: true });

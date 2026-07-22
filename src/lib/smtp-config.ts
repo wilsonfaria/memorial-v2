@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { encryptSecret, decryptSecret } from "@/lib/db-config";
+import { CONFIG_ROOT } from "@/lib/config-root";
 
-const CONFIG_PATH = path.join(process.cwd(), "config", "smtp-config.json");
+const CONFIG_PATH = path.join(CONFIG_ROOT, "smtp-config.json");
 
 export type SmtpConfig = {
   host: string;
