@@ -17,8 +17,10 @@ export default async function SiteLayout({
     getSponsorsForPlacement("FOOTER"),
     getPublishedMenuPages(),
     getFooterLegalPages(),
-    recordAnalyticsEvent("SITE_VISIT"),
   ]);
+  // Fire-and-forget: analytics shouldn't hold up a DB connection needed for
+  // the actual page render, or block the response on its own round-trip.
+  void recordAnalyticsEvent("SITE_VISIT");
 
   const scale = generateBrandScale(settings.primaryColor);
   const accentScale = generateBrandScale(settings.accentColor);

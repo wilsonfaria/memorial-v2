@@ -9,6 +9,14 @@ export const DEFAULT_CREDITS_TEXT =
   "Portal memorial digital desenvolvido por [nome do desenvolvedor/empresa].";
 
 export async function getSiteSettings() {
+  const existing = await prisma.siteSetting.findUnique({ where: { id: 1 } });
+  if (existing) return existing;
+
+  // Only reached once, ever (first request after the table is created) —
+  // every subsequent call is a plain read. Doing an upsert (write) on every
+  // page view was hammering the DB with an UPDATE per request, which under
+  // concurrent public traffic on shared hosting risked lock/pool timeouts
+  // and took down every (site) page (getSiteSettings runs in the shared layout).
   return prisma.siteSetting.upsert({
     where: { id: 1 },
     update: {},

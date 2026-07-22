@@ -2,8 +2,28 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { getDatabaseUrl } from "@/lib/db-config";
 
+/**
+ * The mariadb driver defaults connectionLimit to 10. A single request to a
+ * page like `/` fires ~6 queries concurrently (layout data + page data), so
+ * as few as 2 concurrent visitors could exhaust the default pool and start
+ * throwing `pool timeout: ... (active=0 idle=0 limit=10)`. Raise it so normal
+ * concurrent traffic doesn't starve the pool; respects an explicit
+ * `connectionLimit` already present in the URL (e.g. set manually per-env).
+ */
+function withPoolLimit(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has("connectionLimit")) {
+      parsed.searchParams.set("connectionLimit", "20");
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function createPrismaClient(url: string) {
-  const adapter = new PrismaMariaDb(url);
+  const adapter = new PrismaMariaDb(withPoolLimit(url));
   return new PrismaClient({ adapter });
 }
 
