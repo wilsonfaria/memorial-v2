@@ -63,7 +63,30 @@ export async function getAllEditions() {
 
 export type EditionFilters = { decade?: number; year?: number; month?: number; q?: string };
 
-function buildEditionWhere(filters: EditionFilters): Prisma.EditionWhereInput {
+/**
+ * Prisma's `contains` on MySQL/MariaDB rewrites to a LIKE with an explicit
+ * `COLLATE utf8mb4_bin` on the bound parameter. That clashes with columns
+ * whose collation isn't utf8mb4_bin (ours is utf8mb4_unicode_ci), raising
+ * `DriverAdapterError: Illegal mix of collations`. Raw SQL isn't rewritten by
+ * Prisma, so it just compares using the column's own collation.
+ */
+async function findEditionIdsByTitle(q: string): Promise<number[]> {
+  const rows = await prisma.$queryRaw<{ id: number }[]>`
+    SELECT id FROM editions WHERE title LIKE CONCAT('%', ${q}, '%')
+  `;
+  return rows.map((r) => r.id);
+}
+
+export async function buildTitleOrNumberFilter(q: string): Promise<Prisma.EditionWhereInput["OR"]> {
+  const asNumber = Number(q.replace(/\D/g, ""));
+  const ids = await findEditionIdsByTitle(q);
+  return [
+    ...(ids.length > 0 ? [{ id: { in: ids } }] : []),
+    ...(Number.isInteger(asNumber) && asNumber > 0 ? [{ editionNumber: asNumber }] : []),
+  ];
+}
+
+async function buildEditionWhere(filters: EditionFilters): Promise<Prisma.EditionWhereInput> {
   const monthFilter: Prisma.MonthWhereInput = {};
   if (filters.month) monthFilter.month = filters.month;
   if (filters.year || filters.decade) {
@@ -76,18 +99,14 @@ function buildEditionWhere(filters: EditionFilters): Prisma.EditionWhereInput {
   const where: Prisma.EditionWhereInput = {};
   if (Object.keys(monthFilter).length > 0) where.month = monthFilter;
   if (filters.q) {
-    const asNumber = Number(filters.q.replace(/\D/g, ""));
-    where.OR = [
-      { title: { contains: filters.q } },
-      ...(Number.isInteger(asNumber) && asNumber > 0 ? [{ editionNumber: asNumber }] : []),
-    ];
+    where.OR = await buildTitleOrNumberFilter(filters.q);
   }
   return where;
 }
 
 export async function getFilteredEditions(filters: EditionFilters) {
   return prisma.edition.findMany({
-    where: buildEditionWhere(filters),
+    where: await buildEditionWhere(filters),
     orderBy: { publishedAt: "desc" },
   });
 }
@@ -97,7 +116,7 @@ export async function getFilteredEditionsPaged(
   page: number,
   pageSize: number
 ) {
-  const where = buildEditionWhere(filters);
+  const where = await buildEditionWhere(filters);
   const [editions, total] = await Promise.all([
     prisma.edition.findMany({
       where,

@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildTitleOrNumberFilter } from "@/lib/data";
 import EditionForm from "@/components/admin/EditionForm";
 import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
@@ -31,11 +32,7 @@ export default async function AdminEditionsPage({
   }
   if (Object.keys(monthFilter).length > 0) where.month = monthFilter;
   if (q) {
-    const asNumber = Number(q.replace(/\D/g, ""));
-    where.OR = [
-      { title: { contains: q } },
-      ...(Number.isInteger(asNumber) && asNumber > 0 ? [{ editionNumber: asNumber }] : []),
-    ];
+    where.OR = await buildTitleOrNumberFilter(q);
   }
 
   const [newspapers, distinctYears, total, editions] = await Promise.all([
