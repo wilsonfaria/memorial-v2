@@ -64,15 +64,17 @@ export async function getAllEditions() {
 export type EditionFilters = { decade?: number; year?: number; month?: number; q?: string };
 
 /**
- * Prisma's `contains` on MySQL/MariaDB rewrites to a LIKE with an explicit
- * `COLLATE utf8mb4_bin` on the bound parameter. That clashes with columns
- * whose collation isn't utf8mb4_bin (ours is utf8mb4_unicode_ci), raising
- * `DriverAdapterError: Illegal mix of collations`. Raw SQL isn't rewritten by
- * Prisma, so it just compares using the column's own collation.
+ * Prisma's MySQL/MariaDB driver binds string parameters with an explicit
+ * `utf8mb4_bin` collation — even in raw `$queryRaw` calls, not just the
+ * `contains` filter. The `editions.title` column is `utf8mb4_unicode_ci`,
+ * so comparing it directly against that bound parameter throws
+ * `DriverAdapterError: Illegal mix of collations`. Explicitly collating the
+ * column to match makes both sides of the LIKE the same explicit collation,
+ * which MariaDB allows.
  */
 async function findEditionIdsByTitle(q: string): Promise<number[]> {
   const rows = await prisma.$queryRaw<{ id: number }[]>`
-    SELECT id FROM editions WHERE title LIKE CONCAT('%', ${q}, '%')
+    SELECT id FROM editions WHERE title COLLATE utf8mb4_bin LIKE CONCAT('%', ${q}, '%')
   `;
   return rows.map((r) => r.id);
 }
