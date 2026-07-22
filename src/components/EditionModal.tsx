@@ -69,63 +69,65 @@ export default function EditionModal() {
         className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center gap-3 border-b border-paper-200 bg-brand-50 px-4 py-3">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-paper-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-brand-900">
               {edition?.title ?? "Carregando edição..."}
             </h2>
             {edition && (
-              <p className="text-xs text-slate-500">
+              <p className="truncate text-xs text-slate-500">
                 {formatDateLong(new Date(edition.publishedAt))}
                 {edition.fileSizeBytes ? ` · ${formatFileSize(edition.fileSizeBytes)}` : ""}
               </p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-lg border border-paper-200 bg-white p-1">
-            <button
-              onClick={() => setZoom((z) => Math.max(z - 0.25, MIN_ZOOM))}
-              disabled={zoom <= MIN_ZOOM}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50 disabled:opacity-30"
-              title="Diminuir zoom"
-            >
-              <ZoomOut size={14} />
-            </button>
-            <span className="w-10 text-center text-xs text-slate-500">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom((z) => Math.min(z + 0.25, MAX_ZOOM))}
-              disabled={zoom >= MAX_ZOOM}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50 disabled:opacity-30"
-              title="Aumentar zoom"
-            >
-              <ZoomIn size={14} />
-            </button>
-            {zoom !== 1 && (
+          <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end sm:gap-3">
+            <div className="flex shrink-0 items-center gap-1 rounded-lg border border-paper-200 bg-white p-1">
               <button
-                onClick={() => setZoom(1)}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50"
-                title="Restaurar zoom"
+                onClick={() => setZoom((z) => Math.max(z - 0.25, MIN_ZOOM))}
+                disabled={zoom <= MIN_ZOOM}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50 disabled:opacity-30"
+                title="Diminuir zoom"
               >
-                <RotateCcw size={13} />
+                <ZoomOut size={14} />
               </button>
-            )}
+              <span className="w-10 text-center text-xs text-slate-500">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom((z) => Math.min(z + 0.25, MAX_ZOOM))}
+                disabled={zoom >= MAX_ZOOM}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50 disabled:opacity-30"
+                title="Aumentar zoom"
+              >
+                <ZoomIn size={14} />
+              </button>
+              {zoom !== 1 && (
+                <button
+                  onClick={() => setZoom(1)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-brand-600 hover:bg-brand-50"
+                  title="Restaurar zoom"
+                >
+                  <RotateCcw size={13} />
+                </button>
+              )}
+            </div>
+            <a
+              href={`/api/editions/${openEditionId}/file?download=1`}
+              className="flex h-9 items-center gap-1.5 rounded-lg bg-accent-500 px-3 text-sm font-medium text-white shadow-sm hover:bg-accent-600"
+              title="Baixar PDF"
+            >
+              <Download size={15} />
+              <span className="hidden sm:inline">Download</span>
+            </a>
+            <button
+              onClick={closeEdition}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-brand-100"
+              title="Fechar"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <a
-            href={`/api/editions/${openEditionId}/file?download=1`}
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-accent-500 px-3 text-sm font-medium text-white shadow-sm hover:bg-accent-600"
-            title="Baixar PDF"
-          >
-            <Download size={15} />
-            Download
-          </a>
-          <button
-            onClick={closeEdition}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-brand-100"
-            title="Fechar"
-          >
-            <X size={18} />
-          </button>
         </div>
 
         <div className="flex flex-1 flex-col items-center overflow-auto bg-slate-100 py-6">
