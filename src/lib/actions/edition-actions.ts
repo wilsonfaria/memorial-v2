@@ -6,7 +6,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { ensureStorageDir, deletePdfFile } from "@/lib/storage";
+import { ensureStorageDir, deletePdfFile, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 async function requireSession() {
@@ -68,7 +68,7 @@ export async function createEditionAction(
     const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
+    await writeFile(path.join(STORAGE_ROOT, relPath), bytes);
 
     await prisma.edition.update({
       where: { id: edition.id },

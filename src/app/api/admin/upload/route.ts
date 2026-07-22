@@ -2,7 +2,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { ensureStorageDir } from "@/lib/storage";
+import { ensureStorageDir, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 export async function POST(request: Request) {
@@ -101,7 +101,7 @@ async function handleUpload(request: Request): Promise<Response> {
     const relPath = path.join(relDir, fileName).replace(/\\/g, "/");
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(process.cwd(), "storage", "pdfs", relPath), bytes);
+    await writeFile(path.join(STORAGE_ROOT, relPath), bytes);
 
     await prisma.edition.update({
       where: { id: edition.id },
