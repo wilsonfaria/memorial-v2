@@ -1,14 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { FileText } from "lucide-react";
+import { Newspaper, FileText } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
-import { useInView } from "@/hooks/useInView";
 import { formatDate } from "@/lib/format";
-
-// pdfjs touches browser-only globals (DOMMatrix) at module load time,
-// so this must never be evaluated during server-side rendering.
-const PdfThumbnail = dynamic(() => import("@/components/PdfThumbnail"), { ssr: false });
 
 export type EditionSummary = {
   id: number;
@@ -19,22 +13,14 @@ export type EditionSummary = {
 
 export function EditionCard({ edition }: { edition: EditionSummary }) {
   const { openEdition } = useEditionModal();
-  const { ref, inView } = useInView<HTMLDivElement>();
 
   return (
     <button
       onClick={() => openEdition(edition.id)}
       className="group flex flex-col overflow-hidden rounded-none border border-paper-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-accent-300 hover:shadow-lg"
     >
-      <div
-        ref={ref}
-        className="relative flex h-[259px] items-center justify-center overflow-hidden bg-gradient-to-b from-support-50 to-support-100"
-      >
-        {inView ? (
-          <PdfThumbnail editionId={edition.id} width={220} />
-        ) : (
-          <FileText size={40} className="text-support-400 transition-colors group-hover:text-support-600" />
-        )}
+      <div className="relative flex h-[259px] items-center justify-center overflow-hidden bg-gradient-to-b from-support-50 to-support-100">
+        <Newspaper size={40} className="text-support-400 transition-colors group-hover:text-support-600" />
         <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-accent-700/85 via-accent-700/20 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
           <span className="rounded-full bg-accent-500 px-3 py-1 text-[11px] font-semibold text-white shadow-sm">
             Abrir edição
