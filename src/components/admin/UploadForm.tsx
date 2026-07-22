@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { FolderUp, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { FolderUp, CheckCircle2, XCircle, Loader2, Ban } from "lucide-react";
 import { parseFolderSelection, type ParsedUploadFile, type ParseError } from "@/lib/upload-parse";
 
 type Newspaper = { id: number; name: string };
 
-type UploadStatus = "pending" | "uploading" | "done" | "error";
+type UploadStatus = "pending" | "uploading" | "done" | "error" | "cancelled";
 type UploadItem = ParsedUploadFile & { status: UploadStatus; error?: string };
+
+const PER_FILE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) {
   const [newspaperId, setNewspaperId] = useState<number | "">(newspapers[0]?.id ?? "");
@@ -15,10 +17,12 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
   const [errors, setErrors] = useState<ParseError[]>([]);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelRequestedRef = useRef(false);
+  const currentAbortRef = useRef<AbortController | null>(null);
 
   const summary = useMemo(() => {
     const done = items.filter((i) => i.status === "done").length;
-    const failed = items.filter((i) => i.status === "error").length;
+    const failed = items.filter((i) => i.status === "error" || i.status === "cancelled").length;
     return { done, failed, total: items.length };
   }, [items]);
 
@@ -29,11 +33,24 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
     setErrors(errors);
   }
 
+  function cancelUpload() {
+    cancelRequestedRef.current = true;
+    currentAbortRef.current?.abort();
+  }
+
   async function startUpload() {
     if (!newspaperId) return;
     setUploading(true);
+    cancelRequestedRef.current = false;
 
     for (let i = 0; i < items.length; i++) {
+      if (cancelRequestedRef.current) {
+        setItems((prev) =>
+          prev.map((it, idx) => (idx >= i ? { ...it, status: "cancelled" } : it))
+        );
+        break;
+      }
+
       setItems((prev) =>
         prev.map((it, idx) => (idx === i ? { ...it, status: "uploading" } : it))
       );
@@ -48,8 +65,16 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
       body.set("title", item.title);
       body.set("file", item.file);
 
+      const controller = new AbortController();
+      currentAbortRef.current = controller;
+      const timeoutId = setTimeout(() => controller.abort(), PER_FILE_TIMEOUT_MS);
+
       try {
-        const res = await fetch("/api/admin/upload", { method: "POST", body });
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          body,
+          signal: controller.signal,
+        });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error ?? `Erro HTTP ${res.status}`);
@@ -58,11 +83,20 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
           prev.map((it, idx) => (idx === i ? { ...it, status: "done" } : it))
         );
       } catch (e) {
+        const wasCancelledByUser = cancelRequestedRef.current;
+        const message = wasCancelledByUser
+          ? "Cancelado."
+          : e instanceof DOMException && e.name === "AbortError"
+            ? "Tempo esgotado ao enviar este arquivo."
+            : (e as Error).message;
         setItems((prev) =>
           prev.map((it, idx) =>
-            idx === i ? { ...it, status: "error", error: (e as Error).message } : it
+            idx === i ? { ...it, status: wasCancelledByUser ? "cancelled" : "error", error: message } : it
           )
         );
+      } finally {
+        clearTimeout(timeoutId);
+        currentAbortRef.current = null;
       }
     }
 
@@ -80,7 +114,8 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
         <select
           value={newspaperId}
           onChange={(e) => setNewspaperId(Number(e.target.value))}
-          className="rounded-lg border border-brand-200 px-2 py-2 text-sm outline-none focus:border-brand-400"
+          disabled={uploading}
+          className="rounded-lg border border-brand-200 px-2 py-2 text-sm outline-none focus:border-brand-400 disabled:opacity-60"
         >
           {newspapers.map((n) => (
             <option key={n.id} value={n.id}>
@@ -108,7 +143,8 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          disabled={uploading}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
         >
           Escolher pasta
         </button>
@@ -134,15 +170,27 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
               {items.length} edições identificadas
               {summary.total > 0 && uploading ? ` · ${summary.done + summary.failed}/${summary.total} processadas` : ""}
             </p>
-            <button
-              type="button"
-              onClick={startUpload}
-              disabled={uploading || !newspaperId}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {uploading ? <Loader2 size={14} className="animate-spin" /> : null}
-              {uploading ? "Enviando..." : "Iniciar envio"}
-            </button>
+            <div className="flex gap-2">
+              {uploading && (
+                <button
+                  type="button"
+                  onClick={cancelUpload}
+                  className="flex items-center gap-1.5 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <Ban size={14} />
+                  Cancelar envio
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={startUpload}
+                disabled={uploading || !newspaperId}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+              >
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : null}
+                {uploading ? "Enviando..." : "Iniciar envio"}
+              </button>
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto rounded-lg border border-paper-200">
@@ -165,7 +213,7 @@ export default function UploadForm({ newspapers }: { newspapers: Newspaper[] }) 
                   {item.status === "done" && (
                     <CheckCircle2 size={13} className="mx-auto text-green-600" />
                   )}
-                  {item.status === "error" && (
+                  {(item.status === "error" || item.status === "cancelled") && (
                     <span title={item.error}>
                       <XCircle size={13} className="mx-auto text-red-600" />
                     </span>

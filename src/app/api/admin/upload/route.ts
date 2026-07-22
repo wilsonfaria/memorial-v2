@@ -11,6 +11,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Não autenticado" }, { status: 401 });
   }
 
+  // Top-level guard: if the client aborts mid-upload (e.g. the "Cancelar
+  // envio" button, or a dropped connection) request.formData() itself can
+  // throw. Without this, that error would propagate unhandled instead of
+  // just failing this one request cleanly.
+  try {
+    return await handleUpload(request);
+  } catch (err) {
+    console.error("Falha inesperada no upload em massa:", err);
+    return Response.json({ error: "Falha inesperada ao processar o upload." }, { status: 500 });
+  }
+}
+
+async function handleUpload(request: Request): Promise<Response> {
   const formData = await request.formData();
   const newspaperId = Number(formData.get("newspaperId"));
   const year = Number(formData.get("year"));
