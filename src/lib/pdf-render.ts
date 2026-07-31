@@ -32,11 +32,20 @@ type NapiCanvasContext = Record<string, unknown>;
  * argument genuinely being a Path2D instance, just from the wrong loaded
  * addon. Requiring it relative to pdfjs-dist's own install location
  * guarantees we always get the exact same loaded instance pdfjs uses.
+ *
+ * Note: this deliberately does NOT use `require.resolve("pdfjs-dist/...")`
+ * to find that location. Next.js's bundler rewrites `require`/`require.resolve`
+ * calls for anything listed in `serverExternalPackages` (pdfjs-dist is)
+ * into an internal placeholder string ("[externals]pdfjs-dist/package.json
+ * [external] (...)") instead of a real filesystem path — harmless for a
+ * plain `require()` of the package itself, but breaks any code trying to
+ * introspect *where* it lives. `process.cwd()` is the app root at runtime
+ * in both dev and the Hostinger standalone build, so we can point straight
+ * at its node_modules without asking the bundler to resolve anything.
  */
 function loadCanvasModuleUsedByPdfjs(): NapiCanvasModule {
-  const requireFromHere = createRequire(import.meta.url);
-  const pdfjsPkgJson = requireFromHere.resolve("pdfjs-dist/package.json");
-  const requireFromPdfjs = createRequire(path.join(path.dirname(pdfjsPkgJson), "noop.cjs"));
+  const pdfjsDir = path.join(process.cwd(), "node_modules", "pdfjs-dist");
+  const requireFromPdfjs = createRequire(path.join(pdfjsDir, "noop.cjs"));
   return requireFromPdfjs("@napi-rs/canvas");
 }
 
