@@ -10,6 +10,7 @@
     "postinstall": "prisma generate && node scripts/copy-pdf-worker.mjs"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.100",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",

@@ -1,61 +1,31 @@
-import { createRequire } from "node:module";
 import path from "node:path";
+import { createCanvas, type Canvas, type SKRSContext2D } from "@napi-rs/canvas";
 
 /**
- * Minimal shape of what we use from `@napi-rs/canvas` — kept local instead of
- * `import type { ... } from "@napi-rs/canvas"` because that package is
- * intentionally NOT a dependency of this project (see comment below); we
- * only ever touch it indirectly through pdfjs-dist's own nested copy, so
- * there's no guaranteed `@napi-rs/canvas` install to resolve types against.
- */
-type NapiCanvasModule = {
-  createCanvas(width: number, height: number): NapiCanvas;
-};
-type NapiCanvas = {
-  width: number;
-  height: number;
-  getContext(kind: "2d"): NapiCanvasContext;
-  encode(format: "jpeg", quality: number): Promise<Buffer>;
-};
-type NapiCanvasContext = Record<string, unknown>;
-
-/**
- * pdfjs-dist's Node build itself does `require("@napi-rs/canvas")` internally
- * (for its Path2D/DOMMatrix/ImageData polyfills) as an *optional* dependency
- * of pdfjs-dist — it's never something our own package.json needs to list.
+ * `@napi-rs/canvas` is declared as our own dependency, pinned to the same
+ * range pdfjs-dist itself uses as an *optional* dependency (`^0.1.80`, see
+ * pdfjs-dist/package.json). This matters in both directions:
  *
- * Resolving it ourselves via a plain `import "@napi-rs/canvas"` at the
- * top level is actively harmful: if versions ever drift, npm installs a
- * *second* copy of the native addon, and objects created by "our" copy
- * (e.g. `new Path2D()`) aren't recognized by pdfjs's copy's `ctx.fill()` —
- * it throws `Value is none of these types 'String', 'Path'` despite the
- * argument genuinely being a Path2D instance, just from the wrong loaded
- * addon. Requiring it relative to pdfjs-dist's own install location
- * guarantees we always get the exact same loaded instance pdfjs uses.
- *
- * Note: this deliberately does NOT use `require.resolve("pdfjs-dist/...")`
- * to find that location. Next.js's bundler rewrites `require`/`require.resolve`
- * calls for anything listed in `serverExternalPackages` (pdfjs-dist is)
- * into an internal placeholder string ("[externals]pdfjs-dist/package.json
- * [external] (...)") instead of a real filesystem path — harmless for a
- * plain `require()` of the package itself, but breaks any code trying to
- * introspect *where* it lives. `process.cwd()` is the app root at runtime
- * in both dev and the Hostinger standalone build, so we can point straight
- * at its node_modules without asking the bundler to resolve anything.
+ * - pdfjs-dist's Node build does `require("@napi-rs/canvas")` internally
+ *   (for its Path2D/DOMMatrix/ImageData polyfills) but only as *optional* —
+ *   on Hostinger that optional install was silently skipped (visible only
+ *   as a "Cannot load @napi-rs/canvas package" warning in the app log),
+ *   which left `globalThis.DOMMatrix` unset and crashed every render with
+ *   `ReferenceError: DOMMatrix is not defined`. Declaring it as a *required*
+ *   dependency of this project forces a real install (or a loud `npm
+ *   install` failure instead of a silent runtime one).
+ * - It must stay within pdfjs-dist's own accepted range so npm dedupes both
+ *   requirers to a single physical copy. Two separate copies (e.g. from
+ *   pinning an unrelated major version here) means objects created by
+ *   "our" copy — like `new Path2D()` — aren't recognized by the other
+ *   copy's native bindings: `ctx.fill(path)` throws `Value is none of
+ *   these types 'String', 'Path'` despite a genuine Path2D being passed.
  */
-function loadCanvasModuleUsedByPdfjs(): NapiCanvasModule {
-  const pdfjsDir = path.join(process.cwd(), "node_modules", "pdfjs-dist");
-  const requireFromPdfjs = createRequire(path.join(pdfjsDir, "noop.cjs"));
-  return requireFromPdfjs("@napi-rs/canvas");
-}
-
-type NodeCanvasAndContext = { canvas: NapiCanvas; context: NapiCanvasContext };
+type NodeCanvasAndContext = { canvas: Canvas; context: SKRSContext2D };
 
 class NodeCanvasFactory {
-  constructor(private napiCanvas: NapiCanvasModule) {}
-
   create(width: number, height: number): NodeCanvasAndContext {
-    const canvas = this.napiCanvas.createCanvas(width, height);
+    const canvas = createCanvas(width, height);
     const context = canvas.getContext("2d");
     return { canvas, context };
   }
@@ -83,6 +53,9 @@ export async function renderPdfFirstPageToJpeg(
   targetWidth = 400
 ): Promise<Buffer> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // pdfjs's Node-side font loader wants a plain filesystem path (not a
+  // file:// URL — Node's native fetch() can't retrieve those) ending in a
+  // forward slash specifically, regardless of OS path separator conventions.
   const standardFontDataUrl =
     path.join(process.cwd(), "node_modules", "pdfjs-dist", "standard_fonts").split(path.sep).join("/") + "/";
 
@@ -92,8 +65,7 @@ export async function renderPdfFirstPageToJpeg(
   });
 
   const pdfDoc = await loadingTask.promise;
-  const napiCanvas = loadCanvasModuleUsedByPdfjs();
-  const canvasFactory = new NodeCanvasFactory(napiCanvas);
+  const canvasFactory = new NodeCanvasFactory();
   let canvasAndContext: NodeCanvasAndContext | null = null;
 
   try {
