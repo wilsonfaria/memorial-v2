@@ -16,7 +16,16 @@ export default function EditionResultRow({ edition }: { edition: EditionResultSu
         onClick={() => openEdition(edition.id)}
         className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-b from-support-50 to-support-100"
       >
-        <Newspaper size={16} className="text-support-400" />
+        {edition.thumbnailPath ? (
+          // eslint-disable-next-line @next/next/no-img-element -- served from a persistent storage path outside /public, not optimizable by next/image
+          <img
+            src={`/api/uploads/${edition.thumbnailPath}`}
+            alt=""
+            className="h-full w-full object-cover object-top"
+          />
+        ) : (
+          <Newspaper size={16} className="text-support-400" />
+        )}
       </button>
 
       <button

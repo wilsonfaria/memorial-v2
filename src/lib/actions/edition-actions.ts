@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensureStorageDir, deletePdfFile, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
+import { generateEditionThumbnail, deleteEditionThumbnail } from "@/lib/thumbnail";
 
 async function requireSession() {
   const session = await getSession();
@@ -70,9 +71,11 @@ export async function createEditionAction(
     const bytes = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(STORAGE_ROOT, relPath), bytes);
 
+    const thumbnailPath = await generateEditionThumbnail(edition.id, bytes);
+
     await prisma.edition.update({
       where: { id: edition.id },
-      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
+      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength, thumbnailPath },
     });
   } catch (err) {
     // Never leave a DB row with no file behind.
@@ -94,6 +97,7 @@ export async function deleteEditionAction(formData: FormData) {
   const edition = await prisma.edition.findUnique({ where: { id } });
   if (edition) {
     await deletePdfFile(edition.pdfPath);
+    await deleteEditionThumbnail(edition.thumbnailPath);
     await prisma.edition.delete({ where: { id } });
   }
 
@@ -108,6 +112,7 @@ export async function bulkDeleteEditionsAction(ids: number[]) {
 
   const editions = await prisma.edition.findMany({ where: { id: { in: ids } } });
   await Promise.all(editions.map((e) => deletePdfFile(e.pdfPath)));
+  await Promise.all(editions.map((e) => deleteEditionThumbnail(e.thumbnailPath)));
   await prisma.edition.deleteMany({ where: { id: { in: ids } } });
 
   revalidatePath("/admin/edicoes");

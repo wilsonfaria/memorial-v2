@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { ensureStorageDir, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
+import { generateEditionThumbnail } from "@/lib/thumbnail";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -103,9 +104,11 @@ async function handleUpload(request: Request): Promise<Response> {
     const bytes = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(STORAGE_ROOT, relPath), bytes);
 
+    const thumbnailPath = await generateEditionThumbnail(edition.id, bytes);
+
     await prisma.edition.update({
       where: { id: edition.id },
-      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength },
+      data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength, thumbnailPath },
     });
   } catch (err) {
     // Never leave a DB row with no file behind — that's what produced

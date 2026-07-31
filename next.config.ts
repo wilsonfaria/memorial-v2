@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
   experimental: {
     cpus: 2,
   },
+  // pdfjs-dist's Node build loads @napi-rs/canvas (a native addon) via a
+  // plain runtime `require()` for its thumbnail-rendering support
+  // (src/lib/pdf-render.ts). Bundling it through webpack/Turbopack instead
+  // of leaving it as a real `require` resolved from node_modules at runtime
+  // can break native addons — this keeps both packages external so Next's
+  // file tracing copies the actual .node binary into the standalone output.
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   async headers() {
     return [
       {
