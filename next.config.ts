@@ -40,6 +40,20 @@ const nextConfig: NextConfig = {
   // can break native addons — this keeps both packages external so Next's
   // file tracing copies the actual .node binary into the standalone output.
   serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  // Even with the packages above marked external, Next's file tracing for
+  // the Hostinger standalone build only copies files it can statically see
+  // being imported — it missed pdfjs-dist's own worker file (loaded via a
+  // dynamic, non-analyzable path at runtime) and the standard font data,
+  // causing "Cannot find module .../pdf.worker.mjs" in production even
+  // though everything worked locally (where the full node_modules is
+  // present, tracing or not). Force-including these patterns fixes that.
+  outputFileTracingIncludes: {
+    "/*": [
+      "node_modules/pdfjs-dist/legacy/build/**/*",
+      "node_modules/pdfjs-dist/standard_fonts/**/*",
+      "node_modules/@napi-rs/**/*",
+    ],
+  },
   async headers() {
     return [
       {
