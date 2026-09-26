@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deleteNewspaperAction } from "@/lib/actions/newspaper-actions";
+import PageHeader from "@/components/admin/PageHeader";
+import CreatePanel from "@/components/admin/CreatePanel";
 import NewspaperForm from "./NewspaperForm";
 import { Trash2 } from "lucide-react";
 
@@ -12,13 +14,15 @@ export default async function AdminNewspapersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="mb-6 text-xl font-semibold text-brand-900">Jornais</h1>
+    <>
+      <PageHeader
+        title="Jornais"
+        description="Os títulos cujo acervo este memorial hospeda. Cada jornal organiza suas edições em décadas, anos e meses."
+      />
 
-      <div className="mb-8 rounded-xl border border-paper-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Novo jornal</h2>
+      <CreatePanel label="Novo jornal" title="Novo jornal">
         <NewspaperForm />
-      </div>
+      </CreatePanel>
 
       <div className="flex flex-col gap-2">
         {newspapers.length === 0 && (
@@ -48,6 +52,6 @@ export default async function AdminNewspapersPage() {
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }

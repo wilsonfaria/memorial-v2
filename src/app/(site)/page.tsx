@@ -1,35 +1,82 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import Breadcrumb from "@/components/Breadcrumb";
-import EditionsView from "@/components/EditionsView";
-import { getRecentEditions } from "@/lib/data";
+import HeroSection from "@/components/home/HeroSection";
+import QuickNavCards from "@/components/home/QuickNavCards";
+import MemoriaVivaBlock from "@/components/home/MemoriaVivaBlock";
+import BehindTheScenesBlock from "@/components/home/BehindTheScenesBlock";
+import TimelineSection from "@/components/home/TimelineSection";
+import OnThisDaySection from "@/components/home/OnThisDaySection";
+import BirthdayFinder from "@/components/home/BirthdayFinder";
+import {
+  getOnThisDayEditions,
+  getNavigationTree,
+  getPublishedChronicleTitles,
+  getPublishedTimeline,
+} from "@/lib/data";
+import { getHeroSlides, getHomepageContent } from "@/lib/homepage";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const editions = await getRecentEditions(10);
+  const [content, heroSlides, onThisDayEditions, tree, chronicles, milestones] = await Promise.all([
+    getHomepageContent(),
+    getHeroSlides({ publishedOnly: true }),
+    getOnThisDayEditions(12),
+    getNavigationTree(),
+    getPublishedChronicleTitles(),
+    getPublishedTimeline(),
+  ]);
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Início" }]} />
+      <HeroSection
+        slides={heroSlides.map(({ id, imageUrl, headline, subtext, ctaLabel, ctaHref }) => ({
+          id,
+          imageUrl,
+          headline,
+          subtext,
+          ctaLabel,
+          ctaHref,
+        }))}
+        heroMockup1Url={content.heroMockup1Url}
+        heroMockup2Url={content.heroMockup2Url}
+        tree={tree}
+        chronicles={chronicles}
+      />
 
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-brand-900">Últimas edições</h1>
-            <p className="text-sm text-slate-500">As 10 edições mais recentes do acervo digitalizado.</p>
-          </div>
-          <Link
-            href="/edicoes"
-            className="flex items-center gap-1 text-sm font-medium text-accent-600 hover:text-accent-700"
-          >
-            Ver todas as edições
-            <ArrowRight size={15} />
-          </Link>
-        </div>
+      <QuickNavCards
+        images={{
+          navDecadasImageUrl: content.navDecadasImageUrl,
+          navAnosImageUrl: content.navAnosImageUrl,
+          navMesesImageUrl: content.navMesesImageUrl,
+          navEdicoesImageUrl: content.navEdicoesImageUrl,
+          navCronicasImageUrl: content.navCronicasImageUrl,
+        }}
+      />
 
-        <EditionsView editions={editions} defaultMode="grid" showToggle={false} />
-      </div>
+      <section className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 pb-10 sm:px-6 lg:grid-cols-2 lg:px-8">
+        <MemoriaVivaBlock
+          title={content.videoTitle}
+          subtitle={content.videoSubtitle}
+          embedUrl={content.videoEmbedUrl}
+          thumbnailUrl={content.videoThumbnailUrl}
+          buttonLabel={content.videoButtonLabel}
+        />
+        <BehindTheScenesBlock
+          title={content.behindTitle}
+          subtext={content.behindSubtext}
+          photo1Url={content.behindPhoto1Url}
+          photo2Url={content.behindPhoto2Url}
+          photo3Url={content.behindPhoto3Url}
+          labels={content.behindLabels}
+          buttonLabel={content.behindButtonLabel}
+          buttonHref={content.behindButtonHref}
+        />
+      </section>
+
+      <OnThisDaySection editions={onThisDayEditions} />
+
+      <BirthdayFinder />
+
+      <TimelineSection milestones={milestones} />
     </>
   );
 }

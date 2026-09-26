@@ -121,6 +121,8 @@ export default function AppearanceForm({
   initialFacebookUrl,
   initialInstagramUrl,
   initialXUrl,
+  initialYoutubeUrl,
+  initialMastheadImageUrl,
 }: {
   initialBackgroundColor: string;
   initialColor: string;
@@ -131,6 +133,8 @@ export default function AppearanceForm({
   initialFacebookUrl: string;
   initialInstagramUrl: string;
   initialXUrl: string;
+  initialYoutubeUrl: string;
+  initialMastheadImageUrl: string | null;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateAppearanceAction,
@@ -176,8 +180,34 @@ export default function AppearanceForm({
       </Section>
 
       <Section
+        title="Masthead"
+        description="Imagem de fundo sutil exibida atrás do bloco de logo/nome no topo de todas as páginas do site."
+      >
+        {initialMastheadImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={initialMastheadImageUrl}
+            alt=""
+            className="mb-1 h-16 w-full rounded-lg border border-paper-200 object-cover"
+          />
+        )}
+        <input
+          name="mastheadImage"
+          type="file"
+          accept="image/*"
+          className="rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-400"
+        />
+        {initialMastheadImageUrl && (
+          <label className="flex items-center gap-2 text-xs">
+            <input name="removeMastheadImage" type="checkbox" className="h-4 w-4 rounded border-brand-200" />
+            <span className="font-medium text-slate-500">Remover imagem atual</span>
+          </label>
+        )}
+      </Section>
+
+      <Section
         title="Rodapé"
-        description="Texto exibido no rodapé do site, junto ao aviso de direitos autorais, e também no botão “Créditos”."
+        description="Créditos exibidos na última linha do rodapé, ao lado do aviso de direitos autorais. Endereços como willabs.ia.br viram link automaticamente."
       >
         <textarea
           name="creditsText"
@@ -211,6 +241,13 @@ export default function AppearanceForm({
             type="url"
             defaultValue={initialXUrl}
             placeholder="https://x.com/..."
+            className="rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-400"
+          />
+          <input
+            name="youtubeUrl"
+            type="url"
+            defaultValue={initialYoutubeUrl}
+            placeholder="https://youtube.com/..."
             className="rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-400"
           />
         </div>

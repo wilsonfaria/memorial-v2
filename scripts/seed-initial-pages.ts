@@ -1,7 +1,8 @@
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
-const adapter = new PrismaMariaDb("mysql://root:memorial_root_pw@localhost:3310/memorial");
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL as string);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

@@ -58,6 +58,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-playfair);
 
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);
@@ -167,11 +168,81 @@ body {
   font-weight: 600;
   color: var(--color-brand-900);
 }
+.cms-content blockquote {
+  margin: 1.25rem 0;
+  border-left: 3px solid var(--color-brand-300);
+  padding-left: 1rem;
+  font-style: italic;
+  color: #64748b;
+}
+.cms-content pre {
+  margin: 1rem 0;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 1rem;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.cms-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+.cms-content p code {
+  border-radius: 4px;
+  background: var(--color-brand-50);
+  padding: 0.1rem 0.35rem;
+  color: var(--color-brand-800);
+}
+.cms-content table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.cms-content th,
+.cms-content td {
+  border: 1px solid var(--color-paper-200);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.cms-content th {
+  background: var(--color-brand-50);
+  font-weight: 600;
+  color: var(--color-brand-900);
+}
+.cms-content hr {
+  margin: 2rem 0;
+  border: none;
+  border-top: 1px solid var(--color-paper-200);
+}
 
 /* Let PDF thumbnail canvases shrink/grow to fit their card instead of
    staying at the fixed pixel width react-pdf renders them at. */
 .react-pdf__Page__canvas {
   max-width: 100%;
   height: auto !important;
+}
+
+/* Footer accessibility control (A+/A-): scales all rem-based Tailwind
+   typography site-wide via the root font-size, toggled by FontSizeControl. */
+html[data-font-scale="lg"] {
+  font-size: 112.5%;
+}
+html[data-font-scale="xl"] {
+  font-size: 125%;
+}
+
+/* Homepage hero carousel background: slow zoom + drift ("Ken Burns"). The
+   drift direction comes from --kb-x/--kb-y set per slide in HeroCarousel.tsx.
+   Starting at scale(1.02) keeps the drift from ever exposing an edge. */
+@keyframes hero-ken-burns {
+  from {
+    transform: scale(1.02) translate(0, 0);
+  }
+  to {
+    transform: scale(1.14) translate(var(--kb-x, 0), var(--kb-y, 0));
+  }
 }
 

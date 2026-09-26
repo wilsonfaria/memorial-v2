@@ -83,7 +83,7 @@ export default function PublicEditionsFilterBar({ tree }: { tree: TreeDecade[] }
             <option value="">Todas</option>
             {tree.map((d) => (
               <option key={d.id} value={d.startYear}>
-                {d.label}s
+                {d.label}
               </option>
             ))}
           </select>

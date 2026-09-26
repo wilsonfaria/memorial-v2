@@ -4,12 +4,15 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Pencil, ExternalLink, X } from "lucide-react";
 import {
+  addPageImageAction,
   deletePageAction,
   deletePageImageAction,
   updatePageAction,
   type ActionState,
 } from "@/lib/actions/page-actions";
+import { MAX_IMAGE_BYTES, formatMaxSize } from "@/lib/upload-limits";
 import DeleteButton from "@/components/admin/DeleteButton";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 type PageImage = { id: number; url: string };
 type Page = {
@@ -27,17 +30,42 @@ type Page = {
 
 export default function PageRow({ page }: { page: Page }) {
   const [editing, setEditing] = useState(false);
-  const [state, action, pending] = useActionState<ActionState, FormData>(
-    updatePageAction,
-    undefined
-  );
+  const [progress, setProgress] = useState<string | null>(null);
+  const [state, action, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
+    // Gallery images go up one request each (addPageImageAction) so a big
+    // batch never hits the Server Action body limit; page fields save first.
+    const images = formData
+      .getAll("galleryImages")
+      .filter((f): f is File => f instanceof File && f.size > 0);
+    formData.delete("galleryImages");
+
+    const tooBig = images.find((f) => f.size > MAX_IMAGE_BYTES);
+    if (tooBig) return { error: `"${tooBig.name}" passa de ${formatMaxSize(MAX_IMAGE_BYTES)}. Nada foi enviado.` };
+
+    const result = await updatePageAction(prev, formData);
+    if (result?.error || images.length === 0) return result;
+
+    for (const [i, image] of images.entries()) {
+      setProgress(`Enviando imagem ${i + 1} de ${images.length}...`);
+      const fd = new FormData();
+      fd.set("id", String(page.id));
+      fd.set("image", image);
+      const imageResult = await addPageImageAction(fd);
+      if (imageResult?.error) {
+        setProgress(null);
+        return { error: `${imageResult.error} ${i} de ${images.length} imagem(ns) enviadas antes do erro.` };
+      }
+    }
+    setProgress(null);
+    return { success: `Página atualizada e ${images.length} imagem(ns) adicionada(s).` };
+  }, undefined);
 
   if (editing) {
     return (
       <div className="rounded-lg border border-brand-200 bg-white px-4 py-3">
         <form action={action} className="flex flex-col gap-3">
           <input type="hidden" name="id" value={page.id} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-medium text-slate-500">Título</span>
               <input
@@ -61,14 +89,8 @@ export default function PageRow({ page }: { page: Page }) {
           </div>
 
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-medium text-slate-500">Conteúdo (HTML básico)</span>
-            <textarea
-              name="body"
-              required
-              rows={10}
-              defaultValue={page.body}
-              className="rounded-lg border border-brand-200 px-3 py-2 font-mono text-xs outline-none focus:border-brand-400"
-            />
+            <span className="font-medium text-slate-500">Conteúdo</span>
+            <RichTextEditor name="body" defaultValue={page.body} />
           </label>
 
           <label className="flex flex-col gap-1 text-xs">
@@ -116,7 +138,7 @@ export default function PageRow({ page }: { page: Page }) {
             />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-medium text-slate-500">Rótulo no menu</span>
               <input
@@ -168,7 +190,7 @@ export default function PageRow({ page }: { page: Page }) {
               disabled={pending}
               className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {pending ? "Salvando..." : "Salvar"}
+              {pending ? (progress ?? "Salvando...") : "Salvar"}
             </button>
             <button
               type="button"
@@ -219,7 +241,7 @@ export default function PageRow({ page }: { page: Page }) {
         <DeleteButton
           action={deletePageAction}
           id={page.id}
-          confirmMessage={`Remover a página "${page.title}"? Esta ação não pode ser desfeita.`}
+          confirmMessage={`Mover a página "${page.title}" para a lixeira?`}
         />
       </div>
     </div>

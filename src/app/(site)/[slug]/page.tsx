@@ -1,9 +1,29 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import { getPublishedPageBySlug } from "@/lib/data";
 import { sanitizePageHtml } from "@/lib/sanitize-html";
+import { htmlToDescription } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const page = await getPublishedPageBySlug(slug);
+  if (!page) return {};
+
+  const description = htmlToDescription(page.body);
+  return {
+    title: page.title,
+    description,
+    openGraph: {
+      title: page.title,
+      description,
+      type: "article",
+      images: page.coverImageUrl ? [{ url: page.coverImageUrl }] : undefined,
+    },
+  };
+}
 
 export default async function CmsPage({
   params,
@@ -19,7 +39,7 @@ export default async function CmsPage({
     <>
       <Breadcrumb items={[{ label: "Início", href: "/" }, { label: page.title }]} />
 
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 *:max-w-3xl">
         {page.coverImageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

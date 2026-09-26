@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import PageHeader from "@/components/admin/PageHeader";
+import CreatePanel from "@/components/admin/CreatePanel";
 import UserForm from "./UserForm";
 import UserRow from "./UserRow";
 
@@ -12,13 +14,15 @@ export default async function AdminUsersPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold text-brand-900">Usuários</h1>
+    <>
+      <PageHeader
+        title="Usuários"
+        description="Quem tem acesso a esta área administrativa. Cada usuário entra com o próprio login e pode ativar verificação em duas etapas."
+      />
 
-      <div className="mb-8 rounded-xl border border-paper-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Novo usuário</h2>
+      <CreatePanel label="Novo usuário" title="Novo usuário">
         <UserForm />
-      </div>
+      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {users.map((u) => (
@@ -30,6 +34,6 @@ export default async function AdminUsersPage() {
           />
         ))}
       </div>
-    </div>
+    </>
   );
 }

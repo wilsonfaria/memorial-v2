@@ -1,101 +1,137 @@
 import Link from "next/link";
-
-type LegalPage = { slug: string; label: string };
+import { QuillIcon } from "@/components/icons";
+import SocialLinks from "@/components/SocialLinks";
+import AccessibilityBar from "@/components/AccessibilityBar";
+import type { PublicMenuItem } from "@/lib/menu-repo";
 
 export default function Footer({
   newspaperName,
   logoUrl,
-  creditsText,
+  tagline,
   facebookUrl,
   instagramUrl,
   xUrl,
-  legalPages,
+  youtubeUrl,
+  menuItems,
+  creditsText,
 }: {
   newspaperName: string;
   logoUrl?: string | null;
-  creditsText: string;
+  tagline: string;
   facebookUrl?: string | null;
   instagramUrl?: string | null;
   xUrl?: string | null;
-  legalPages: LegalPage[];
+  youtubeUrl?: string | null;
+  menuItems: PublicMenuItem[];
+  creditsText?: string;
 }) {
-  const year = new Date().getFullYear();
-  const hasSocial = facebookUrl || instagramUrl || xUrl;
-
   return (
-    <footer className="w-full bg-brand-700">
-      <div className="flex flex-wrap items-center justify-center gap-10 border-b border-white/10 px-6 py-6">
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={newspaperName} className="h-10 rounded bg-white/95 px-2 object-contain" />
-        ) : (
-          <span className="text-sm font-medium text-white/80">{newspaperName}</span>
-        )}
-      </div>
+    <footer className="w-full bg-brand-900">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={newspaperName} className="h-16 w-auto rounded bg-white/95 px-3 py-2 object-contain" />
+          ) : (
+            <>
+              <QuillIcon className="h-9 w-9 shrink-0 text-white/90" />
+              <div className="leading-tight">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">Memorial do Jornal</p>
+                <p className="font-display text-lg font-bold text-white">{newspaperName}</p>
+                <p className="text-[10px] uppercase tracking-wide text-white/50">{tagline}</p>
+              </div>
+            </>
+          )}
+        </div>
 
-      <div className="flex flex-col items-center gap-3 px-6 py-4 text-center">
-        <p className="text-xs text-white/60">
-          © {year} {newspaperName}. {creditsText}
+        <p className="font-display max-w-md text-center text-sm italic text-white/70">
+          &ldquo;A memória de um povo é o alicerce do seu futuro.&rdquo;
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          {legalPages.map((p) => (
-            <Link
-              key={p.slug}
-              href={`/${p.slug}`}
-              className="text-xs text-white/60 hover:text-white hover:underline"
-            >
-              {p.label}
-            </Link>
-          ))}
+        <SocialLinks
+          facebookUrl={facebookUrl}
+          instagramUrl={instagramUrl}
+          xUrl={xUrl}
+          youtubeUrl={youtubeUrl}
+          className="text-white/60"
+        />
+      </div>
 
-          {hasSocial && (
-            <div className="flex items-center gap-3 text-white/60">
-              {facebookUrl && (
-                <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="hover:text-white">
-                  <FacebookIcon />
-                </a>
-              )}
-              {instagramUrl && (
-                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="hover:text-white">
-                  <InstagramIcon />
-                </a>
-              )}
-              {xUrl && (
-                <a href={xUrl} target="_blank" rel="noopener noreferrer" aria-label="X (Twitter)" className="hover:text-white">
-                  <XIcon />
-                </a>
-              )}
-            </div>
-          )}
+      {menuItems.length > 0 && (
+        <div className="border-t border-white/10 px-6 py-3">
+          <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 text-[11px] text-white/60 lg:justify-end">
+            {menuItems.map((item, i) => (
+              <span key={item.id} className="flex flex-wrap items-center gap-3">
+                {i > 0 && <span className="text-white/30">|</span>}
+                <FooterMenuLink item={item} />
+                {item.children.map((child) => (
+                  <FooterMenuLink key={child.id} item={child} muted />
+                ))}
+              </span>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      <div className="border-t border-white/10 px-6 py-3">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 lg:flex-row lg:justify-between">
+          <p className="text-center text-[11px] text-white/60 lg:text-left">
+            © {new Date().getFullYear()} {newspaperName}. Todos os direitos reservados.
+            {creditsText && (
+              <>
+                <span className="mx-2 text-white/30">|</span>
+                <LinkifiedText text={creditsText} />
+              </>
+            )}
+          </p>
+          <AccessibilityBar />
         </div>
       </div>
     </footer>
   );
 }
 
-function FacebookIcon() {
+// Bare domains or URLs inside the admin-written credits text ("…: willabs.ia.br").
+const URL_PATTERN = /((?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?)/gi;
+
+/** Renders the credits text with any domain/URL in it turned into a link. */
+function LinkifiedText({ text }: { text: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12Z" />
-    </svg>
+    <>
+      {text.split(URL_PATTERN).map((part, i) =>
+        i % 2 === 1 ? (
+          <a
+            key={i}
+            href={/^https?:\/\//i.test(part) ? part : `https://${part}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-white/80 hover:text-white hover:underline"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
   );
 }
 
-function InstagramIcon() {
+function FooterMenuLink({
+  item,
+  muted,
+}: {
+  item: { label: string; url: string; openNewTab: boolean };
+  muted?: boolean;
+}) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="5" />
-      <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M18.9 2H22l-7.5 8.57L23.3 22H16.9l-5-6.53L6.1 22H3l8-9.14L2.9 2h6.6l4.5 5.96Zm-1.1 18h1.7L7.3 3.9H5.5Z" />
-    </svg>
+    <Link
+      href={item.url}
+      target={item.openNewTab ? "_blank" : undefined}
+      rel={item.openNewTab ? "noopener noreferrer" : undefined}
+      className={`hover:text-white hover:underline ${muted ? "text-white/45" : ""}`}
+    >
+      {item.label}
+    </Link>
   );
 }

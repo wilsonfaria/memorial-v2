@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { prisma, reconnectPrisma, testDatabaseUrl } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import {
@@ -12,6 +14,8 @@ import {
 } from "@/lib/db-config";
 import { readSmtpConfig, writeSmtpConfig, type SmtpConfig } from "@/lib/smtp-config";
 import { testSmtpConfig } from "@/lib/mailer";
+import { ensureSiteUploadDir, deleteSiteFile, SITE_UPLOAD_DIR, SITE_PUBLIC_PREFIX } from "@/lib/site-storage";
+import { MAX_IMAGE_BYTES, formatMaxSize } from "@/lib/upload-limits";
 
 async function requireSession() {
   const session = await getSession();
@@ -81,6 +85,9 @@ export async function updateAppearanceAction(
   const facebookUrl = String(formData.get("facebookUrl") ?? "").trim() || null;
   const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
   const xUrl = String(formData.get("xUrl") ?? "").trim() || null;
+  const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim() || null;
+  const mastheadImage = formData.get("mastheadImage");
+  const removeMastheadImage = formData.get("removeMastheadImage") === "on";
 
   if (!/^#[0-9a-fA-F]{6}$/.test(backgroundColor)) {
     return { error: "Escolha uma cor de fundo válida." };
@@ -101,10 +108,30 @@ export async function updateAppearanceAction(
     return { error: "O texto do rodapé não pode ficar vazio." };
   }
 
+  const existing = await prisma.siteSetting.findUnique({ where: { id: 1 } });
+  let mastheadImageUrl = existing?.mastheadImageUrl ?? null;
+
+  if (mastheadImage instanceof File && mastheadImage.size > 0) {
+    if (!mastheadImage.type.startsWith("image/")) return { error: "A imagem do masthead deve ser uma imagem." };
+    if (mastheadImage.size > MAX_IMAGE_BYTES) {
+      return { error: `A imagem do masthead deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+    }
+    await ensureSiteUploadDir();
+    const ext = (mastheadImage.type.split("/")[1] || "jpg").replace("svg+xml", "svg");
+    const fileName = `masthead-${Date.now()}.${ext}`;
+    const bytes = Buffer.from(await mastheadImage.arrayBuffer());
+    await writeFile(path.join(SITE_UPLOAD_DIR, fileName), bytes);
+    if (mastheadImageUrl) await deleteSiteFile(mastheadImageUrl);
+    mastheadImageUrl = `${SITE_PUBLIC_PREFIX}/${fileName}`;
+  } else if (removeMastheadImage && mastheadImageUrl) {
+    await deleteSiteFile(mastheadImageUrl);
+    mastheadImageUrl = null;
+  }
+
   await prisma.siteSetting.upsert({
     where: { id: 1 },
-    update: { backgroundColor, primaryColor, accentColor, secondaryColor, supportColor, creditsText, facebookUrl, instagramUrl, xUrl },
-    create: { id: 1, backgroundColor, primaryColor, accentColor, secondaryColor, supportColor, creditsText, facebookUrl, instagramUrl, xUrl },
+    update: { backgroundColor, primaryColor, accentColor, secondaryColor, supportColor, creditsText, facebookUrl, instagramUrl, xUrl, youtubeUrl, mastheadImageUrl },
+    create: { id: 1, backgroundColor, primaryColor, accentColor, secondaryColor, supportColor, creditsText, facebookUrl, instagramUrl, xUrl, youtubeUrl, mastheadImageUrl },
   });
 
   revalidatePath("/", "layout");

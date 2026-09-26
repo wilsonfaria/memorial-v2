@@ -72,7 +72,7 @@ function DecadeForm({ newspaperId }: { newspaperId: number }) {
 }
 
 function DecadeNode({ decade }: { decade: DecadeData }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
     <li className="rounded-lg border border-paper-200 bg-white">
       <div className="flex items-center justify-between px-3 py-2">

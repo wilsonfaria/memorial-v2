@@ -1,5 +1,7 @@
 import { getEffectiveDbConfig } from "@/lib/db-config";
 import { readSmtpConfig } from "@/lib/smtp-config";
+import PageHeader from "@/components/admin/PageHeader";
+import Card from "@/components/admin/Card";
 import DbConfigForm from "./DbConfigForm";
 import SmtpConfigForm from "./SmtpConfigForm";
 
@@ -10,32 +12,27 @@ export default async function AdminSettingsPage() {
   const smtpCurrent = readSmtpConfig();
 
   return (
-    <div className="mx-auto max-w-xl">
-      <h1 className="mb-2 text-xl font-semibold text-brand-900">Configurações do banco de dados</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Altere para onde o site se conecta (por exemplo, ao migrar do banco local para o banco de
-        produção na hospedagem). A conexão é testada antes de qualquer alteração — se falhar, nada
-        é salvo e o site continua funcionando normalmente com a conexão atual.
-      </p>
+    <>
+      <PageHeader
+        title="Configurações"
+        description="Conexões de infraestrutura do site: banco de dados e envio de email. Ambas são testadas antes de salvar — se o teste falhar, nada é alterado."
+      />
 
-      <div className="rounded-xl border border-paper-200 bg-white p-4">
-        <DbConfigForm initial={current} />
+      <div className="flex flex-col gap-6">
+        <Card
+          title="Banco de dados"
+          description="Define para onde o site se conecta (por exemplo, ao migrar do banco local para o de produção). Esta tela troca a conexão em tempo real, mas não executa migrações — o banco de destino já precisa ter as tabelas criadas."
+        >
+          <DbConfigForm initial={current} />
+        </Card>
+
+        <Card
+          title="Email (SMTP)"
+          description="Usado para enviar os emails de redefinição de senha dos administradores. A conexão é validada com login real no servidor antes de salvar."
+        >
+          <SmtpConfigForm initial={smtpCurrent} />
+        </Card>
       </div>
-
-      <p className="mt-4 text-xs text-slate-400">
-        Observação: esta tela troca a conexão usada pelo site em tempo real. Ela não executa
-        migrações — o banco de destino já precisa ter as tabelas criadas (via <code>prisma migrate deploy</code>).
-      </p>
-
-      <h1 className="mb-2 mt-10 text-xl font-semibold text-brand-900">Configurações de email (SMTP)</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Usado para enviar os emails de redefinição de senha dos usuários administradores. A conexão
-        é testada (login real no servidor) antes de salvar.
-      </p>
-
-      <div className="rounded-xl border border-paper-200 bg-white p-4">
-        <SmtpConfigForm initial={smtpCurrent} />
-      </div>
-    </div>
+    </>
   );
 }

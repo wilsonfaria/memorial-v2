@@ -44,7 +44,7 @@ export async function createDecadeAction(
   }
 
   await prisma.decade.create({
-    data: { newspaperId, startYear: roundedStart, label: String(roundedStart) },
+    data: { newspaperId, startYear: roundedStart, label: `${roundedStart}s` },
   });
 
   revalidatePath("/admin/categorias");

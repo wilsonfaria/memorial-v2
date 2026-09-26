@@ -4,13 +4,9 @@ import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import CreditsButton from "@/components/CreditsButton";
-import SponsorFooterCarousel from "@/components/SponsorFooterCarousel";
+import SponsorBar from "@/components/SponsorBar";
 import { EditionModalProvider } from "@/context/EditionModalContext";
-import type { MenuPage } from "@/lib/data";
-
-type SponsorSummary = { id: number; name: string; logoUrl: string; linkUrl: string | null };
-type LegalPage = { slug: string; label: string };
+import type { PublicMenuItem } from "@/lib/menu-repo";
 
 // pdfjs touches browser-only globals (DOMMatrix) at module load time,
 // so this must never be evaluated during server-side rendering.
@@ -21,46 +17,59 @@ export default function AppShell({
   logoUrl,
   tagline,
   creditsText,
-  footerSponsors,
-  menuPages,
-  legalPages,
+  headerMenuItems,
+  footerMenuItems,
   facebookUrl,
   instagramUrl,
   xUrl,
+  youtubeUrl,
+  mastheadImageUrl,
   children,
 }: {
   newspaperName: string;
   logoUrl?: string | null;
   tagline: string;
   creditsText: string;
-  footerSponsors: SponsorSummary[];
-  menuPages: MenuPage[];
-  legalPages: LegalPage[];
+  headerMenuItems: PublicMenuItem[];
+  footerMenuItems: PublicMenuItem[];
   facebookUrl?: string | null;
   instagramUrl?: string | null;
   xUrl?: string | null;
+  youtubeUrl?: string | null;
+  mastheadImageUrl?: string | null;
   children: ReactNode;
 }) {
   return (
     <EditionModalProvider>
-      <div className="flex h-full flex-col">
-        <Header newspaperName={newspaperName} logoUrl={logoUrl} tagline={tagline} menuPages={menuPages} />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-screen flex-col">
+        <Header
+          newspaperName={newspaperName}
+          logoUrl={logoUrl}
+          tagline={tagline}
+          menuItems={headerMenuItems}
+          facebookUrl={facebookUrl}
+          instagramUrl={instagramUrl}
+          xUrl={xUrl}
+          youtubeUrl={youtubeUrl}
+          mastheadImageUrl={mastheadImageUrl}
+        />
+        <main className="flex flex-1 flex-col">
           <div className="flex-1">{children}</div>
-          <SponsorFooterCarousel sponsors={footerSponsors} />
+          <SponsorBar />
           <Footer
             newspaperName={newspaperName}
             logoUrl={logoUrl}
-            creditsText={creditsText}
+            tagline={tagline}
             facebookUrl={facebookUrl}
             instagramUrl={instagramUrl}
             xUrl={xUrl}
-            legalPages={legalPages}
+            youtubeUrl={youtubeUrl}
+            menuItems={footerMenuItems}
+            creditsText={creditsText}
           />
         </main>
       </div>
       <EditionModal />
-      <CreditsButton text={creditsText} />
     </EditionModalProvider>
   );
 }

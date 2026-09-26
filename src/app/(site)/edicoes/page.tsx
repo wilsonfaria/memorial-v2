@@ -10,7 +10,7 @@ const PAGE_SIZE = 20;
 export default async function AllEditionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ decada?: string; ano?: string; mes?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ decada?: string; ano?: string; mes?: string; dia?: string; q?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
@@ -22,6 +22,7 @@ export default async function AllEditionsPage({
         decade: params.decada ? Number(params.decada) : undefined,
         year: params.ano ? Number(params.ano) : undefined,
         month: params.mes ? Number(params.mes) : undefined,
+        day: params.dia ? Number(params.dia) : undefined,
         q: params.q,
       },
       page,
@@ -37,6 +38,7 @@ export default async function AllEditionsPage({
   if (params.decada) activeParams.set("decada", params.decada);
   if (params.ano) activeParams.set("ano", params.ano);
   if (params.mes) activeParams.set("mes", params.mes);
+  if (params.dia) activeParams.set("dia", params.dia);
   if (params.q) activeParams.set("q", params.q);
 
   function pageHref(p: number) {
@@ -49,7 +51,7 @@ export default async function AllEditionsPage({
     <>
       <Breadcrumb items={[{ label: "Início", href: "/" }, { label: "Todas as edições" }]} />
 
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6 md:flex-row">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 md:flex-row lg:px-8">
         <aside className="w-full md:w-60 md:shrink-0">
           <PublicEditionsFilterBar tree={tree} />
         </aside>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import CategoryTree from "@/components/admin/CategoryTree";
+import PageHeader from "@/components/admin/PageHeader";
+import Card from "@/components/admin/Card";
 
 export const dynamic = "force-dynamic";
 
@@ -27,25 +29,30 @@ export default async function AdminCategoriesPage() {
 
   if (newspapers.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="mb-3 text-sm text-slate-500">
-          Cadastre um jornal antes de criar categorias.
-        </p>
-        <Link href="/admin/jornais" className="text-sm font-medium text-brand-600 underline">
-          Ir para Jornais
-        </Link>
-      </div>
+      <>
+        <PageHeader title="Categorias" />
+        <Card>
+          <p className="mb-3 text-sm text-slate-500">
+            Cadastre um jornal antes de criar categorias.
+          </p>
+          <Link href="/admin/jornais" className="text-sm font-medium text-brand-600 underline">
+            Ir para Jornais
+          </Link>
+        </Card>
+      </>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="mb-6 text-xl font-semibold text-brand-900">Categorias</h1>
+    <>
+      <PageHeader
+        title="Categorias"
+        description="Estrutura de navegação do acervo: décadas, anos e meses em que as edições são organizadas."
+      />
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         {newspapers.map((np) => (
-          <section key={np.id}>
-            <h2 className="mb-3 text-sm font-semibold text-slate-700">{np.name}</h2>
+          <Card key={np.id} title={np.name}>
             <CategoryTree
               newspaperId={np.id}
               decades={np.decades.map((d) => ({
@@ -63,9 +70,9 @@ export default async function AdminCategoriesPage() {
                 })),
               }))}
             />
-          </section>
+          </Card>
         ))}
       </div>
-    </div>
+    </>
   );
 }

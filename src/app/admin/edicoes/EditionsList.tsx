@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
-import { bulkDeleteEditionsAction, deleteEditionAction } from "@/lib/actions/edition-actions";
+import { useActionState, useState, useTransition } from "react";
+import { Trash2, ScanText, Check } from "lucide-react";
+import {
+  bulkDeleteEditionsAction,
+  deleteEditionAction,
+  extractEditionTextAction,
+  type OcrActionState,
+} from "@/lib/actions/edition-actions";
 import { formatDate, formatFileSize } from "@/lib/format";
 
 type EditionRow = {
@@ -11,6 +16,7 @@ type EditionRow = {
   publishedAt: Date;
   fileSizeBytes: number | null;
   editionNumber: number | null;
+  hasExtractedText: boolean;
   month: { year: { year: number; decade: { label: string } } };
 };
 
@@ -36,7 +42,7 @@ export default function EditionsList({ editions }: { editions: EditionRow[] }) {
 
   function handleBulkDelete() {
     if (selected.size === 0) return;
-    if (!window.confirm(`Remover ${selected.size} edição(ões) selecionada(s)? Os PDFs serão apagados permanentemente.`)) {
+    if (!window.confirm(`Mover ${selected.size} edição(ões) selecionada(s) para a lixeira?`)) {
       return;
     }
     startTransition(async () => {
@@ -90,15 +96,16 @@ export default function EditionsList({ editions }: { editions: EditionRow[] }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-700">{e.title}</p>
             <p className="text-xs text-slate-400">
-              {formatDate(e.publishedAt)} · {e.month.year.decade.label}s / {e.month.year.year} ·{" "}
+              {formatDate(e.publishedAt)} · {e.month.year.decade.label} / {e.month.year.year} ·{" "}
               {formatFileSize(e.fileSizeBytes)}
               {e.editionNumber ? ` · nº ${e.editionNumber}` : ""}
             </p>
           </div>
+          <OcrButton id={e.id} hasExtractedText={e.hasExtractedText} />
           <form
             action={deleteEditionAction}
             onSubmit={(ev) => {
-              if (!window.confirm(`Remover a edição "${e.title}"? O PDF será apagado permanentemente.`)) {
+              if (!window.confirm(`Mover a edição "${e.title}" para a lixeira?`)) {
                 ev.preventDefault();
               }
             }}
@@ -115,5 +122,42 @@ export default function EditionsList({ editions }: { editions: EditionRow[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function OcrButton({ id, hasExtractedText }: { id: number; hasExtractedText: boolean }) {
+  const [state, action, pending] = useActionState<OcrActionState, FormData>(
+    extractEditionTextAction,
+    undefined
+  );
+
+  return (
+    <form action={action} className="shrink-0" title={state?.error ?? state?.success ?? undefined}>
+      <input type="hidden" name="id" value={id} />
+      <button
+        type="submit"
+        disabled={pending}
+        className={`flex h-7 w-7 items-center justify-center rounded-lg disabled:opacity-60 ${
+          hasExtractedText
+            ? "text-green-600 hover:bg-green-50"
+            : "text-slate-400 hover:bg-brand-100 hover:text-brand-700"
+        }`}
+        title={
+          pending
+            ? "Extraindo texto..."
+            : hasExtractedText
+              ? "Texto já indexado para busca — clique para reprocessar"
+              : "Extrair texto (OCR) para permitir busca dentro desta edição"
+        }
+      >
+        {pending ? (
+          <ScanText size={13} className="animate-pulse" />
+        ) : hasExtractedText ? (
+          <Check size={13} />
+        ) : (
+          <ScanText size={13} />
+        )}
+      </button>
+    </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { createPageAction, type ActionState } from "@/lib/actions/page-actions";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 export default function PageForm() {
   const [state, action, pending] = useActionState<ActionState, FormData>(
@@ -16,7 +17,7 @@ export default function PageForm() {
 
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-500">Título</span>
           <input
@@ -39,13 +40,8 @@ export default function PageForm() {
       </div>
 
       <label className="flex flex-col gap-1 text-xs">
-        <span className="font-medium text-slate-500">Conteúdo (HTML básico é aceito: &lt;p&gt;, &lt;h2&gt;, &lt;strong&gt;, &lt;a&gt;, &lt;img&gt;...)</span>
-        <textarea
-          name="body"
-          required
-          rows={8}
-          className="rounded-lg border border-brand-200 px-3 py-2 text-sm outline-none focus:border-brand-400"
-        />
+        <span className="font-medium text-slate-500">Conteúdo</span>
+        <RichTextEditor name="body" placeholder="Escreva o conteúdo da página..." />
       </label>
 
       <label className="flex flex-col gap-1 text-xs">
@@ -58,7 +54,7 @@ export default function PageForm() {
         />
       </label>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-500">Rótulo no menu (opcional)</span>
           <input

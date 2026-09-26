@@ -16,7 +16,7 @@ export default function UserForm() {
 
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-500">Nome</span>
           <input
@@ -39,7 +39,7 @@ export default function UserForm() {
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-500">Email</span>
           <input

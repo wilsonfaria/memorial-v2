@@ -21,9 +21,82 @@ model SiteSetting {
   facebookUrl  String?
   instagramUrl String?
   xUrl         String?
+  youtubeUrl   String?
+  /// Faint background image behind the masthead (logo/name) row, shown on every page.
+  mastheadImageUrl String?
+  /// How many banners the sponsor strip (above the footer, every page) shows
+  /// per page view: pinned banners always, then random ones up to this total.
+  bannerSlots  Int      @default(8)
   updatedAt    DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+/// Singleton row (id always 1) holding the homepage's editorial content
+/// (hero, "Memória Viva" video, "Por trás do Memorial" block). Kept separate
+/// from SiteSetting because it's large, image-heavy, and only read by the
+/// homepage, unlike SiteSetting which is consumed on every page.
+model HomepageContent {
+  id Int @id @default(1)
+
+  heroImageUrl   String?
+  heroHeadline   String  @default("Mais de um século registrando a nossa gente.") @db.Text
+  heroSubtext    String? @db.Text
+  heroCtaLabel   String  @default("EXPLORAR O ACERVO")
+  heroCtaHref    String  @default("/edicoes")
+  heroMockup1Url String?
+  heroMockup2Url String?
+  heroRibbonText String  @default("O PASSADO SEMPRE ATUAL")
+
+  videoTitle        String  @default("MEMÓRIA VIVA")
+  videoSubtitle      String? @db.Text
+  videoEmbedUrl      String?
+  videoThumbnailUrl  String?
+  videoButtonLabel   String  @default("ASSISTA AO DOCUMENTÁRIO")
+
+  behindTitle       String  @default("Por trás do Memorial")
+  behindSubtext     String? @db.Text
+  behindPhoto1Url   String?
+  behindPhoto2Url   String?
+  behindPhoto3Url   String?
+  /// JSON [{label, href}] — each step is a button (see src/lib/behind-steps.ts).
+  /// Older rows may still hold a plain comma-separated list of labels.
+  behindLabels     String  @default("Digitalização,Pesquisa,Documentação,Audiovisual,Tecnologia") @db.Text
+  behindButtonLabel String  @default("CONHEÇA O PROJETO")
+  behindButtonHref  String  @default("/projetos")
+
+  /// Photos for the 5 quick-nav cards (Décadas/Anos/Meses/Edições/Crônicas).
+  /// Falls back to a plain icon when not set.
+  navDecadasImageUrl  String?
+  navAnosImageUrl     String?
+  navMesesImageUrl    String?
+  navEdicoesImageUrl  String?
+  navCronicasImageUrl String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("homepage_content")
+}
+
+/// One slide of the homepage hero carousel. The hero* image/headline/CTA
+/// columns on HomepageContent predate the carousel: the migration that added
+/// this table copied them into the first slide, and they're no longer read.
+/// The cover mockups and ribbon stay on HomepageContent (shared by all slides).
+model HeroSlide {
+  id        Int     @id @default(autoincrement())
+  imageUrl  String?
+  headline  String  @db.Text
+  subtext   String? @db.Text
+  ctaLabel  String?
+  ctaHref   String?
+  order     Int     @default(0)
+  published Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@map("hero_slides")
 }
 
 model Page {
@@ -38,6 +111,8 @@ model Page {
   menuOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt     DateTime?
 
   images PageImage[]
 
@@ -54,23 +129,184 @@ model PageImage {
   @@map("page_images")
 }
 
-enum SponsorPlacement {
-  SIDEBAR
-  FOOTER
-  BOTH
-}
-
+/// A sponsor banner shown in the strip above the footer on every page (see
+/// src/lib/banners.ts for selection and counting).
 model Sponsor {
-  id        Int              @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
   logoUrl   String
   linkUrl   String?
-  placement SponsorPlacement @default(BOTH)
-  order     Int              @default(0)
-  active    Boolean          @default(true)
-  createdAt DateTime         @default(now())
+  /// Pinned banners are always shown, first, sorted by `order`; the rest are
+  /// drawn at random for each page view to fill SiteSetting.bannerSlots.
+  pinned    Boolean  @default(false)
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  /// Optional run window; null = no bound.
+  startsAt  DateTime?
+  endsAt    DateTime?
+  /// Stop showing after this many appearances; null = unlimited.
+  maxAppearances Int?
+  /// Lifetime counters (per-day breakdown in SponsorDailyStat):
+  /// appearances = included in a page's strip; views = the strip was actually
+  /// on screen; clicks = followed via /api/banners/[id]/click.
+  appearances Int    @default(0)
+  views       Int    @default(0)
+  clicks      Int    @default(0)
+  createdAt DateTime @default(now())
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt DateTime?
+
+  dailyStats SponsorDailyStat[]
 
   @@map("sponsors")
+}
+
+model SponsorDailyStat {
+  sponsorId   Int
+  sponsor     Sponsor  @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  appearances Int      @default(0)
+  views       Int      @default(0)
+  clicks      Int      @default(0)
+
+  @@id([sponsorId, date])
+  @@index([date])
+  @@map("sponsor_daily_stats")
+}
+
+model Chronicle {
+  id            Int      @id @default(autoincrement())
+  title         String
+  slug          String   @unique
+  excerpt       String?  @db.Text
+  body          String   @db.LongText
+  coverImageUrl String?
+  authorName    String?
+  publishedAt   DateTime @default(now())
+  published     Boolean  @default(false)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt     DateTime?
+
+  @@map("chronicles")
+}
+
+model Character {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  role      String?
+  bio       String   @db.LongText
+  photoUrl  String?
+  bornYear  Int?
+  diedYear  Int?
+  published Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt DateTime?
+
+  @@map("characters")
+}
+
+model GalleryAlbum {
+  id            Int      @id @default(autoincrement())
+  title         String
+  slug          String   @unique
+  description   String?  @db.Text
+  coverImageUrl String?
+  published     Boolean  @default(false)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt     DateTime?
+
+  photos GalleryPhoto[]
+
+  @@map("gallery_albums")
+}
+
+model GalleryPhoto {
+  id      Int          @id @default(autoincrement())
+  albumId Int
+  album   GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  url     String
+  caption String?
+  order   Int          @default(0)
+
+  captionSuggestions PhotoCaptionSuggestion[]
+
+  @@map("gallery_photos")
+}
+
+/// Visitor-submitted photo identifications ("who is this?"), held for admin
+/// review before they can overwrite a photo's public caption.
+model PhotoCaptionSuggestion {
+  id            Int          @id @default(autoincrement())
+  photoId       Int
+  photo         GalleryPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  suggestion    String       @db.Text
+  submitterName String?
+  /// "pending" | "approved" | "rejected"
+  status        String       @default("pending")
+  createdAt     DateTime     @default(now())
+
+  @@index([photoId])
+  @@index([status])
+  @@map("photo_caption_suggestions")
+}
+
+model TimelineMilestone {
+  id          Int      @id @default(autoincrement())
+  year        Int
+  title       String
+  description String?  @db.Text
+  order       Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt   DateTime?
+
+  @@map("timeline_milestones")
+}
+
+model Project {
+  id            Int      @id @default(autoincrement())
+  title         String
+  slug          String   @unique
+  summary       String?  @db.Text
+  body          String   @db.LongText
+  coverImageUrl String?
+  published     Boolean  @default(false)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt     DateTime?
+
+  @@map("projects")
+}
+
+/// Submissions from the public "Fale Conosco" contact form.
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  /// Best-effort flag: whether the notification e-mail was sent successfully.
+  /// Not authoritative — the DB row is always the source of truth.
+  emailSent Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("contact_messages")
 }
 
 model AdminUser {
@@ -173,14 +409,51 @@ model Edition {
   monthId       Int
   month         Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
 
-  /// Full text extracted via OCR, reserved for future full-text/RAG search
+  /// Text layer / OCR output, populated on demand from the admin edition list — powers full-text search on /edicoes.
   extractedText String?  @db.LongText
   createdAt     DateTime @default(now())
+  /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
+  deletedAt     DateTime?
 
   events AnalyticsEvent[]
 
   @@index([publishedAt])
   @@map("editions")
+}
+
+/// A navigable menu slot (e.g. "principal" for the header, "rodape" for the
+/// footer). Rows are created lazily by the admin UI on first visit to that
+/// slot, not seeded up front.
+model Menu {
+  id   Int    @id @default(autoincrement())
+  key  String @unique
+  name String
+
+  items MenuItem[]
+
+  @@map("menus")
+}
+
+model MenuItem {
+  id     Int  @id @default(autoincrement())
+  menuId Int
+  menu   Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  /// Self-FK; null means top-level. The admin UI only surfaces one level of
+  /// nesting (parent -> children), but the schema allows deeper trees.
+  parentId Int?
+  parent   MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children MenuItem[] @relation("MenuItemChildren")
+
+  label      String
+  url        String
+  sortOrder  Int      @default(0)
+  openNewTab Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([menuId])
+  @@index([parentId])
+  @@map("menu_items")
 }
 
 enum AnalyticsEventType {

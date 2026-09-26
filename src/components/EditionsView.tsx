@@ -45,7 +45,7 @@ export default function EditionsView({
       )}
 
       {mode === "grid" ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
           {editions.map((edition) => (
             <EditionCard key={edition.id} edition={edition} />
           ))}

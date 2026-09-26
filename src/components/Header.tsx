@@ -2,96 +2,304 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, Newspaper, Library, Handshake, FileText } from "lucide-react";
-import type { MenuPage } from "@/lib/data";
+import { useRouter, usePathname } from "next/navigation";
+import { Home, Search, ChevronDown } from "lucide-react";
+import type { PublicMenuItem } from "@/lib/menu-repo";
+import { QuillIcon } from "@/components/icons";
+import SocialLinks from "@/components/SocialLinks";
+import AccessibilityBar from "@/components/AccessibilityBar";
 
 export default function Header({
   newspaperName,
   logoUrl,
   tagline,
-  menuPages,
+  menuItems,
+  facebookUrl,
+  instagramUrl,
+  xUrl,
+  youtubeUrl,
+  mastheadImageUrl,
 }: {
   newspaperName: string;
   logoUrl?: string | null;
   tagline: string;
-  menuPages: MenuPage[];
+  menuItems: PublicMenuItem[];
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  xUrl?: string | null;
+  youtubeUrl?: string | null;
+  mastheadImageUrl?: string | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const router = useRouter();
 
-  const links = [
-    { href: "/", label: "Início", icon: <Newspaper size={15} /> },
-    { href: "/edicoes", label: "Todas as edições", icon: <Library size={15} /> },
-    { href: "/apoiadores", label: "Apoiadores", icon: <Handshake size={15} /> },
-    ...menuPages.map((p) => ({
-      href: `/${p.slug}`,
-      label: p.menuLabel ?? p.title,
-      icon: <FileText size={15} />,
-    })),
-  ];
+  function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const q = new FormData(e.currentTarget).get("q");
+    setSearchOpen(false);
+    router.push(`/edicoes${q ? `?q=${encodeURIComponent(String(q))}` : ""}`);
+  }
 
   return (
-    <header className="w-full bg-brand-700">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
-          {logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt={`Logo ${newspaperName}`}
-              className="h-9 w-auto shrink-0 rounded bg-white/95 px-1.5 py-1 object-contain"
-            />
-          )}
-          <div className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-base font-semibold text-white">{newspaperName}</span>
-            <span className="truncate text-xs text-white/60">{tagline}</span>
-          </div>
-        </Link>
-
-        <nav className="hidden items-center gap-1 md:flex">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                pathname === link.href
-                  ? "bg-white/15 text-white"
-                  : "text-white/75 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {link.icon}
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        <button
-          onClick={() => setMobileOpen((v) => !v)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white hover:bg-white/10 md:hidden"
-          title={mobileOpen ? "Fechar menu" : "Abrir menu"}
-        >
-          {mobileOpen ? <X size={19} /> : <Menu size={19} />}
-        </button>
+    <header className="w-full">
+      {/* Top utility bar */}
+      <div className="hidden bg-slate-800 px-4 py-1.5 sm:px-6 lg:block lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <SocialLinks
+            facebookUrl={facebookUrl}
+            instagramUrl={instagramUrl}
+            xUrl={xUrl}
+            youtubeUrl={youtubeUrl}
+            className="text-white/60"
+          />
+          <AccessibilityBar />
+        </div>
       </div>
 
-      {mobileOpen && (
-        <nav className="mx-auto flex max-w-7xl flex-col gap-1 border-t border-white/15 px-4 py-3 sm:px-6 lg:px-8 md:hidden">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
-                pathname === link.href ? "bg-white/15 text-white" : "text-white/75 hover:bg-white/10"
-              }`}
+      {/* Masthead */}
+      <div
+        className="relative flex min-h-[180px] items-center bg-paper-50 bg-cover bg-center px-4 py-4 sm:px-6 lg:px-8"
+        style={mastheadImageUrl ? { backgroundImage: `url(${mastheadImageUrl})` } : undefined}
+      >
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+          <div className="hidden shrink-0 text-xs font-semibold uppercase leading-tight tracking-wide text-brand-700 sm:block">
+            História
+            <br />
+            Cultura
+            <br />
+            Memória
+            <br />
+            Identidade
+          </div>
+
+          <Link href="/" className="flex min-w-0 flex-1 items-center justify-center gap-4">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={`Logo ${newspaperName}`}
+                className="h-auto w-full max-w-[445px] object-contain"
+              />
+            ) : (
+              <>
+                <QuillIcon className="h-[48px] w-[48px] shrink-0 text-brand-900" />
+                <div className="flex min-w-0 flex-col items-center leading-tight">
+                  <span className="flex items-center gap-3 text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+                    <span className="h-px w-[34px] bg-slate-300" />
+                    Memorial do Jornal
+                    <span className="h-px w-[34px] bg-slate-300" />
+                  </span>
+                  <span className="truncate font-display text-[30px] font-bold text-brand-900 sm:text-[41px]">
+                    {newspaperName}
+                  </span>
+                  <span className="truncate text-[12px] uppercase tracking-wide text-slate-500">{tagline}</span>
+                </div>
+              </>
+            )}
+          </Link>
+
+          <div className="hidden shrink-0 items-center gap-4 lg:flex">
+            <div className="text-right leading-tight">
+              <p className="font-display text-3xl font-bold text-brand-900">105 ANOS</p>
+              <p className="text-sm text-slate-500">de história viva</p>
+            </div>
+            <span className="h-12 w-px bg-slate-300" />
+            <div className="max-w-[11rem] text-right text-sm leading-tight text-slate-500">
+              <p className="italic">Preservar o passado</p>
+              <p className="italic">é construir o futuro.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav bar */}
+      <div className="w-full bg-brand-900">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+            title="Início"
+          >
+            <Home size={17} />
+          </Link>
+
+          <nav className="hidden flex-1 items-center justify-between lg:flex">
+            {menuItems.map((item) => (
+              <DesktopMenuItem key={item.id} item={item} />
+            ))}
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => setSearchOpen((v) => !v)}
+              aria-label={searchOpen ? "Fechar busca" : "Buscar edições"}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+              title="Buscar edições"
             >
-              {link.icon}
-              {link.label}
+              <Search size={17} />
+            </button>
+            <button
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={mobileOpen}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-white lg:hidden"
+              title={mobileOpen ? "Fechar menu" : "Abrir menu"}
+            >
+              <HamburgerIcon open={mobileOpen} />
+            </button>
+          </div>
+        </div>
+
+        {searchOpen && (
+          <div className="border-t border-white/15 bg-brand-800 px-4 py-3 sm:px-6 lg:px-8">
+            <form onSubmit={handleSearchSubmit} className="mx-auto flex max-w-7xl items-center gap-2">
+              <input
+                name="q"
+                type="text"
+                autoFocus
+                placeholder="Buscar por título, número ou palavra dentro das edições..."
+                className="flex-1 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 outline-none focus:border-white/40"
+              />
+              <button
+                type="submit"
+                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-brand-900 hover:bg-white/90"
+              >
+                Buscar
+              </button>
+            </form>
+          </div>
+        )}
+
+        {mobileOpen && (
+          <nav className="flex flex-col gap-1 border-t border-white/15 px-4 py-3 sm:px-6 lg:hidden lg:px-8">
+            {menuItems.map((item) => (
+              <MobileMenuItem key={item.id} item={item} onNavigate={() => setMobileOpen(false)} />
+            ))}
+          </nav>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function DesktopMenuItem({ item }: { item: PublicMenuItem }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const hasChildren = item.children.length > 0;
+  const active = pathname === item.url;
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => hasChildren && setOpen(true)}
+      onMouseLeave={() => hasChildren && setOpen(false)}
+      onFocus={() => hasChildren && setOpen(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+    >
+      <Link
+        href={item.url}
+        target={item.openNewTab ? "_blank" : undefined}
+        rel={item.openNewTab ? "noopener noreferrer" : undefined}
+        aria-haspopup={hasChildren || undefined}
+        aria-expanded={hasChildren ? open : undefined}
+        className={`flex items-center gap-1 whitespace-nowrap rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors ${
+          active || open ? "bg-white/15 text-white" : "text-white/75 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        {item.label}
+        {hasChildren && (
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={open ? "rotate-180 transition-transform" : "transition-transform"}
+          />
+        )}
+      </Link>
+
+      {hasChildren && open && (
+        <div className="absolute left-0 top-full z-20 mt-1 min-w-44 overflow-hidden rounded-lg border border-paper-200 bg-white py-1 shadow-lg">
+          {item.children.map((child) => (
+            <Link
+              key={child.id}
+              href={child.url}
+              target={child.openNewTab ? "_blank" : undefined}
+              rel={child.openNewTab ? "noopener noreferrer" : undefined}
+              className="block px-3 py-2 text-sm text-slate-600 hover:bg-brand-50 hover:text-brand-800"
+            >
+              {child.label}
             </Link>
           ))}
-        </nav>
+        </div>
       )}
-    </header>
+    </div>
+  );
+}
+
+function MobileMenuItem({ item, onNavigate }: { item: PublicMenuItem; onNavigate: () => void }) {
+  const pathname = usePathname();
+  return (
+    <div>
+      <MobileLink item={item} active={pathname === item.url} onClick={onNavigate} />
+      {item.children.length > 0 && (
+        <div className="ml-4 flex flex-col gap-1 border-l border-white/15 pl-3">
+          {item.children.map((child) => (
+            <MobileLink key={child.id} item={child} active={pathname === child.url} onClick={onNavigate} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileLink({
+  item,
+  active,
+  onClick,
+}: {
+  item: { id: number; label: string; url: string; openNewTab: boolean };
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={item.url}
+      target={item.openNewTab ? "_blank" : undefined}
+      rel={item.openNewTab ? "noopener noreferrer" : undefined}
+      onClick={onClick}
+      className={`rounded-lg px-3 py-2 text-sm font-medium ${
+        active ? "bg-white/15 text-white" : "text-white/75 hover:bg-white/10"
+      }`}
+    >
+      {item.label}
+    </Link>
+  );
+}
+
+/** Hand-rolled so the hamburger/close glyph is a plain SVG path swap, no icon library. */
+function HamburgerIcon({ open }: { open: boolean }) {
+  return (
+    <svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {open ? (
+        <path
+          d="M6 6L18 18M18 6L6 18"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+      ) : (
+        <path
+          d="M4 7H20M4 12H20M4 17H20"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
   );
 }

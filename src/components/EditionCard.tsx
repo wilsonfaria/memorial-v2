@@ -18,7 +18,7 @@ export function EditionCard({ edition }: { edition: EditionSummary }) {
   return (
     <button
       onClick={() => openEdition(edition.id)}
-      className="group flex flex-col overflow-hidden rounded-none border border-paper-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-accent-300 hover:shadow-lg"
+      className="group flex flex-col overflow-hidden rounded-xl border border-paper-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-accent-300 hover:shadow-lg"
     >
       <div className="relative flex h-[259px] items-center justify-center overflow-hidden bg-gradient-to-b from-support-50 to-support-100">
         {edition.thumbnailPath ? (

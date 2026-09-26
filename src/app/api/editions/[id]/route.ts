@@ -6,7 +6,7 @@ export async function GET(
   ctx: RouteContext<"/api/editions/[id]">
 ) {
   const { id } = await ctx.params;
-  const edition = await prisma.edition.findUnique({ where: { id: Number(id) } });
+  const edition = await prisma.edition.findFirst({ where: { id: Number(id), deletedAt: null } });
 
   if (!edition) {
     return Response.json({ error: "Edição não encontrada" }, { status: 404 });

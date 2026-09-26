@@ -1,5 +1,6 @@
 import AppShell from "@/components/AppShell";
-import { getNewspaper, getSponsorsForPlacement, getPublishedMenuPages, getFooterLegalPages } from "@/lib/data";
+import { getNewspaper } from "@/lib/data";
+import { listMenuItems } from "@/lib/menu-repo";
 import { getSiteSettings } from "@/lib/settings";
 import { generateBrandScale, BRAND_STEPS } from "@/lib/color";
 import { recordAnalyticsEvent } from "@/lib/analytics";
@@ -11,12 +12,13 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [newspaper, settings, footerSponsors, menuPages, legalPages] = await Promise.all([
+  // Sponsor banners are fetched client-side per page view (SponsorBar)
+  // so each navigation gets its own random selection and is counted.
+  const [newspaper, settings, headerMenuItems, footerMenuItems] = await Promise.all([
     getNewspaper(),
     getSiteSettings(),
-    getSponsorsForPlacement("FOOTER"),
-    getPublishedMenuPages(),
-    getFooterLegalPages(),
+    listMenuItems("principal"),
+    listMenuItems("rodape"),
   ]);
   // Fire-and-forget: analytics shouldn't hold up a DB connection needed for
   // the actual page render, or block the response on its own round-trip.
@@ -40,12 +42,13 @@ export default async function SiteLayout({
         logoUrl={newspaper?.logoUrl}
         tagline={newspaper?.tagline ?? "Memorial digital do acervo"}
         creditsText={settings.creditsText}
-        footerSponsors={footerSponsors}
-        menuPages={menuPages}
-        legalPages={legalPages}
+        headerMenuItems={headerMenuItems}
+        footerMenuItems={footerMenuItems}
         facebookUrl={settings.facebookUrl}
         instagramUrl={settings.instagramUrl}
         xUrl={settings.xUrl}
+        youtubeUrl={settings.youtubeUrl}
+        mastheadImageUrl={settings.mastheadImageUrl}
       >
         {children}
       </AppShell>

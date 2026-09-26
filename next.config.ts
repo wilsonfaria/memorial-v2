@@ -19,6 +19,10 @@ const CONTENT_SECURITY_POLICY = [
   "font-src 'self' data:",
   "connect-src 'self'",
   "worker-src 'self' blob:",
+  // The homepage "Memória Viva" block embeds the documentary via an iframe
+  // (src/components/home/MemoriaVivaBlock.tsx). Without an explicit
+  // frame-src, default-src 'self' blocks every YouTube/Vimeo player.
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -32,6 +36,16 @@ const nextConfig: NextConfig = {
   // Capping this keeps builds well within a modest shared-hosting limit.
   experimental: {
     cpus: 2,
+    // Server Actions default to a 1MB body, too small for any 5MB image upload
+    // (MAX_IMAGE_BYTES in src/lib/upload-limits.ts). 10MB fits one image plus
+    // form fields, and matches proxyClientMaxBodySize: src/proxy.ts runs on
+    // /admin/*, and a body bigger than that would be silently truncated there
+    // instead of rejected. Keep MAX_ACTION_BODY_BYTES in sync with these.
+    // Multi-photo gallery uploads send one photo per request (AlbumRow.tsx).
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+    proxyClientMaxBodySize: "10mb",
   },
   // pdfjs-dist's Node build loads @napi-rs/canvas (a native addon) via a
   // plain runtime `require()` for its thumbnail-rendering support

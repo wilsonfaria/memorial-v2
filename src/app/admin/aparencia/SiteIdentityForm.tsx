@@ -47,7 +47,7 @@ export default function SiteIdentityForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-500">Nome do jornal (título do site)</span>
           <input

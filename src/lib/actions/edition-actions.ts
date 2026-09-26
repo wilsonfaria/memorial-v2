@@ -2,13 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { ensureStorageDir, deletePdfFile, STORAGE_ROOT } from "@/lib/storage";
+import { ensureStorageDir, absolutePdfPath, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
-import { generateEditionThumbnail, deleteEditionThumbnail } from "@/lib/thumbnail";
+import { generateEditionThumbnail } from "@/lib/thumbnail";
+import { extractEditionText } from "@/lib/ocr";
 
 async function requireSession() {
   const session = await getSession();
@@ -90,33 +91,73 @@ export async function createEditionAction(
   revalidatePath(`/mes/${monthId}`);
 }
 
+/** Moves the edition to the trash (see src/lib/trash.ts) instead of deleting its row and PDF outright. */
 export async function deleteEditionAction(formData: FormData) {
   await requireSession();
   const id = Number(formData.get("id"));
 
-  const edition = await prisma.edition.findUnique({ where: { id } });
-  if (edition) {
-    await deletePdfFile(edition.pdfPath);
-    await deleteEditionThumbnail(edition.thumbnailPath);
-    await prisma.edition.delete({ where: { id } });
-  }
+  await prisma.edition.update({ where: { id }, data: { deletedAt: new Date() } }).catch(() => {});
 
   revalidatePath("/admin/edicoes");
   revalidatePath("/");
   revalidatePath("/edicoes");
 }
 
+export type OcrActionState = { error?: string; success?: string } | undefined;
+
+/**
+ * Runs text extraction (embedded PDF text layer, falling back to OCR for
+ * scanned pages) for one edition and stores the result for full-text search.
+ * Deliberately single-edition and admin-triggered rather than automatic on
+ * upload: OCR is CPU-heavy and shared hosting has tight process limits, so
+ * bulk-processing hundreds of issues at once would risk taking the site down.
+ */
+export async function extractEditionTextAction(
+  _prevState: OcrActionState,
+  formData: FormData
+): Promise<OcrActionState> {
+  await requireSession();
+  const id = Number(formData.get("id"));
+
+  const edition = await prisma.edition.findUnique({ where: { id } });
+  if (!edition) return { error: "Edição não encontrada." };
+
+  let bytes: Buffer;
+  try {
+    bytes = await readFile(absolutePdfPath(edition.pdfPath));
+  } catch {
+    return { error: "Não foi possível ler o arquivo PDF desta edição." };
+  }
+
+  try {
+    const result = await extractEditionText(bytes);
+    await prisma.edition.update({ where: { id }, data: { extractedText: result.text || null } });
+
+    revalidatePath("/admin/edicoes");
+    revalidatePath("/edicoes");
+
+    if (!result.text) {
+      return { error: "Nenhum texto foi reconhecido nesta edição." };
+    }
+    const parts = [`Texto extraído de ${result.pagesProcessed} de ${result.pagesTotal} página(s)`];
+    if (result.ocrPages > 0) parts.push(`${result.ocrPages} via OCR`);
+    if (result.truncated) parts.push("processamento limitado por tamanho — rode novamente se preciso");
+    return { success: `${parts.join(", ")}.` };
+  } catch (err) {
+    console.error("Falha ao extrair texto da edição:", err);
+    return { error: "Falha ao processar o PDF para extração de texto." };
+  }
+}
+
+/** Moves the selected editions to the trash (see src/lib/trash.ts) instead of deleting them outright. */
 export async function bulkDeleteEditionsAction(ids: number[]) {
   await requireSession();
   if (ids.length === 0) return { error: "Nenhuma edição selecionada." };
 
-  const editions = await prisma.edition.findMany({ where: { id: { in: ids } } });
-  await Promise.all(editions.map((e) => deletePdfFile(e.pdfPath)));
-  await Promise.all(editions.map((e) => deleteEditionThumbnail(e.thumbnailPath)));
-  await prisma.edition.deleteMany({ where: { id: { in: ids } } });
+  const result = await prisma.edition.updateMany({ where: { id: { in: ids } }, data: { deletedAt: new Date() } });
 
   revalidatePath("/admin/edicoes");
   revalidatePath("/");
   revalidatePath("/edicoes");
-  return { success: `${editions.length} edição(ões) removida(s).` };
+  return { success: `${result.count} edição(ões) movida(s) para a lixeira.` };
 }

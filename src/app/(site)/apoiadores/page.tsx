@@ -10,7 +10,7 @@ export default async function SponsorsPage() {
     <>
       <Breadcrumb items={[{ label: "Início", href: "/" }, { label: "Apoiadores" }]} />
 
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-brand-900">Apoiadores</h1>
         <p className="text-sm text-slate-500">

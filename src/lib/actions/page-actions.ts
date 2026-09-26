@@ -105,7 +105,6 @@ export async function updatePageAction(
   const showInMenu = formData.get("showInMenu") === "on";
   const published = formData.get("published") === "on";
   const coverImage = formData.get("coverImage");
-  const galleryImages = formData.getAll("galleryImages");
 
   if (title.length < 2) return { error: "Informe um título." };
   if (body.length < 1) return { error: "O conteúdo da página não pode ficar vazio." };
@@ -143,41 +142,49 @@ export async function updatePageAction(
     },
   });
 
-  const newFiles = galleryImages.filter(
-    (f): f is File => f instanceof File && f.size > 0 && f.type.startsWith("image/")
-  );
-  const oversizeFile = newFiles.find((f) => f.size > MAX_IMAGE_BYTES);
-  if (oversizeFile) {
-    return { error: `Cada imagem da galeria deve ter no máximo ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
-  }
-  if (newFiles.length > 0) {
-    const currentMax = await prisma.pageImage.aggregate({
-      where: { pageId: id },
-      _max: { order: true },
-    });
-    let nextOrder = (currentMax._max.order ?? -1) + 1;
-    for (const file of newFiles) {
-      const url = await saveImageFile(file, "gallery");
-      await prisma.pageImage.create({ data: { pageId: id, url, order: nextOrder } });
-      nextOrder += 1;
-    }
-  }
-
   revalidatePath("/admin/paginas");
   revalidatePath("/", "layout");
   return { success: "Página atualizada com sucesso." };
 }
 
+/**
+ * Adds ONE gallery image to a page. PageRow.tsx calls this once per selected
+ * file rather than posting them all together, which would exceed the Server
+ * Action body limit (serverActions.bodySizeLimit in next.config.ts).
+ */
+export async function addPageImageAction(formData: FormData): Promise<ActionState> {
+  await requireSession();
+
+  const id = Number(formData.get("id"));
+  const file = formData.get("image");
+
+  if (!(file instanceof File) || file.size === 0) return { error: "Nenhuma imagem enviada." };
+  if (!file.type.startsWith("image/")) return { error: `"${file.name}" não é uma imagem.` };
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { error: `"${file.name}" passa de ${formatMaxSize(MAX_IMAGE_BYTES)}.` };
+  }
+
+  const page = await prisma.page.findUnique({ where: { id }, select: { id: true } });
+  if (!page) return { error: "Página não encontrada." };
+
+  const currentMax = await prisma.pageImage.aggregate({
+    where: { pageId: id },
+    _max: { order: true },
+  });
+  const url = await saveImageFile(file, "gallery");
+  await prisma.pageImage.create({ data: { pageId: id, url, order: (currentMax._max.order ?? -1) + 1 } });
+
+  revalidatePath("/admin/paginas");
+  revalidatePath("/", "layout");
+  return { success: "Imagem adicionada." };
+}
+
+/** Moves the page to the trash (see src/lib/trash.ts) instead of deleting it outright. */
 export async function deletePageAction(formData: FormData) {
   await requireSession();
   const id = Number(formData.get("id"));
 
-  const existing = await prisma.page.findUnique({ where: { id }, include: { images: true } });
-  if (existing) {
-    if (existing.coverImageUrl) await deletePageImageFile(existing.coverImageUrl);
-    await Promise.all(existing.images.map((img) => deletePageImageFile(img.url)));
-    await prisma.page.delete({ where: { id } });
-  }
+  await prisma.page.update({ where: { id }, data: { deletedAt: new Date() } }).catch(() => {});
 
   revalidatePath("/admin/paginas");
   revalidatePath("/", "layout");

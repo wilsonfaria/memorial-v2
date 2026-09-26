@@ -1,6 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildTitleOrNumberFilter } from "@/lib/data";
+import PageHeader from "@/components/admin/PageHeader";
+import CreatePanel from "@/components/admin/CreatePanel";
 import EditionForm from "@/components/admin/EditionForm";
 import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
@@ -21,7 +23,7 @@ export default async function AdminEditionsPage({
   const q = params.q?.trim();
   const page = Math.max(1, Number(params.page) || 1);
 
-  const where: Prisma.EditionWhereInput = {};
+  const where: Prisma.EditionWhereInput = { deletedAt: null };
   const monthFilter: Prisma.MonthWhereInput = {};
   if (month) monthFilter.month = month;
   if (year || newspaperId) {
@@ -57,7 +59,17 @@ export default async function AdminEditionsPage({
       orderBy: { publishedAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: { month: { include: { year: { include: { decade: true } } } } },
+      select: {
+        id: true,
+        title: true,
+        publishedAt: true,
+        fileSizeBytes: true,
+        editionNumber: true,
+        // Booleanize below — a page of 20 issues' full OCR text can be
+        // hundreds of KB and this list only needs to know whether it exists.
+        extractedText: true,
+        month: { select: { year: { select: { year: true, decade: { select: { label: true } } } } } },
+      },
     }),
   ]);
 
@@ -78,20 +90,24 @@ export default async function AdminEditionsPage({
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="mb-6 text-xl font-semibold text-brand-900">Edições</h1>
+    <>
+      <PageHeader
+        title="Edições"
+        description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
+      />
 
-      <div className="mb-8 rounded-xl border border-paper-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Nova edição</h2>
+      <CreatePanel label="Nova edição" title="Nova edição">
         <EditionForm newspapers={newspapers} />
-      </div>
+      </CreatePanel>
 
       <EditionsFilterBar newspapers={newspapers} years={distinctYears.map((y) => y.year)} />
 
       <p className="mb-1 text-xs text-slate-400">
         {total === 0 ? "Nenhuma edição encontrada." : `Mostrando ${from} - ${to} de ${total} edição(ões).`}
       </p>
-      <EditionsList editions={editions} />
+      <EditionsList
+        editions={editions.map(({ extractedText, ...e }) => ({ ...e, hasExtractedText: Boolean(extractedText) }))}
+      />
 
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-2">
@@ -108,6 +124,6 @@ export default async function AdminEditionsPage({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
