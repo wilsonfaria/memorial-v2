@@ -1,0 +1,23 @@
+# Rebuilt inside the image
+node_modules
+.next
+public/pdf.worker.min.js
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Secrets and per-environment config — provided via env vars / the /data volume
+.env*
+config/*.json
+
+# Runtime data — lives on the /data volume, never baked into the image
+storage
+public/uploads
+
+# Repo / tooling noise
+.git
+.gitignore
+.claude
+*.md
+!README.md
+Dockerfile
+.dockerignore

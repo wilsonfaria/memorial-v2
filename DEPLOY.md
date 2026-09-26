@@ -1,3 +1,50 @@
+# Deploy no Coolify (Docker) — recomendado
+
+O repositório tem um `Dockerfile` pronto. A cada inicialização o container:
+1. aplica as migrations pendentes (`prisma migrate deploy`);
+2. copia as imagens de `seed/uploads/` para o volume (nunca sobrescreve);
+3. sobe o Next.js na porta 3000.
+
+## 1. Banco de dados
+
+No Coolify, crie um recurso **MariaDB versão 11** (a tabela `_prisma_migrations`
+usa a collation `utf8mb3_uca1400_ai_ci`, que não existe antes do 10.10).
+Em **Import Backup**, envie o dump do banco (`.sql.gz`) — o dump não tem
+`CREATE DATABASE`, então entra no banco selecionado.
+
+## 2. Aplicação
+
+- **Source:** este repositório no GitHub, branch `master`.
+- **Build pack:** `Dockerfile` · **Porta:** `3000`.
+- **Healthcheck:** `GET /api/health` (já definido no Dockerfile; não gera
+  estatística de visita nem conta aparição de banner).
+- **Volume persistente** montado em **`/data`** — sem ele, todo deploy apaga
+  PDFs e imagens:
+
+| Pasta no volume | Conteúdo | Variável (já definida no Dockerfile) |
+|---|---|---|
+| `/data/pdfs` | PDFs das edições (`AAAA/MM/edicao-ID.pdf`) | `PDF_STORAGE_ROOT` |
+| `/data/uploads` | imagens do admin + `thumbnails/` das edições | `UPLOADS_STORAGE_ROOT` |
+| `/data/config` | `db-config.json` / `smtp-config.json` salvos pelo admin | `APP_CONFIG_ROOT` |
+
+## 3. Variáveis de ambiente
+
+| Variável | Valor |
+|---|---|
+| `DATABASE_URL` | URL **interna** do MariaDB do Coolify (`mysql://usuario:senha@host:3306/banco`) |
+| `AUTH_SECRET` | `openssl rand -base64 32` (trocar desloga quem estiver no admin) |
+| `SETTINGS_ENCRYPTION_KEY` | a **mesma** usada no ambiente de onde vier o `/data/config`; senão, nova |
+| `SITE_URL` / `APP_URL` | domínio final com `https://` |
+
+## 4. Arquivos das edições
+
+Os PDFs e as miniaturas **não** vão no Git nem no dump do banco. Copie-os para
+o volume (`/data/pdfs` e `/data/uploads/thumbnails`) — de preferência
+servidor a servidor, com `rsync` via SSH. Os arquivos precisam pertencer ao
+usuário `node` do container (uid 1000): `chown -R 1000:1000` na pasta do volume.
+
+---
+
 # Deploy na Hostinger (plano Business, Node.js + Git)
 
 ## 1. Crie o banco de dados MySQL
