@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 112" role="img" aria-labelledby="title desc">
+  <title id="title">Willabs</title>
+  <desc id="desc">Marca Willabs com símbolo W e palavra willabs</desc>
+  <rect x="8" y="8" width="96" height="96" rx="22" fill="#141821"/>
+  <path d="M26 38 37 76 55 47 73 76 85 38" fill="none" stroke="#B8F36B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="85" cy="30" r="6" fill="#FF7A55"/>
+  <text x="124" y="78" fill="#141821" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800" letter-spacing="-5">willabs<tspan fill="#FF7A55">.</tspan></text>
+</svg>
