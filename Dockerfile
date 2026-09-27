@@ -32,7 +32,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
 COPY scripts ./scripts
-RUN mkdir -p public && npm ci --no-audit --no-fund
+# --include=dev: Coolify passes the app's env vars (NODE_ENV=production among
+# them) as build args, and with NODE_ENV=production `npm ci` would skip
+# devDependencies — but the build needs them (Tailwind's PostCSS plugin,
+# TypeScript). They're pruned again right after `next build`.
+RUN mkdir -p public && npm ci --include=dev --no-audit --no-fund
 
 COPY . .
 RUN npm run build \
