@@ -17,7 +17,7 @@ import {
   type ReindexBatchResult,
   type ReindexMode,
 } from "@/lib/search/indexer";
-import { getIndexStats, isMeiliConfigured } from "@/lib/search/meili";
+import { getMeiliStatus, isMeiliConfigured, type MeiliStatus } from "@/lib/search/meili";
 
 async function requireSession() {
   const session = await getSession();
@@ -170,28 +170,19 @@ export type SearchIndexStatus = {
   editions: number;
   editionsWithText: number;
   pages: number;
-  meili: { configured: boolean; reachable: boolean; documents: number | null; pendingTasks: number };
+  /** null = MEILI_URL / MEILI_KEY not set */
+  meili: MeiliStatus | null;
 };
 
 export async function getSearchIndexStatusAction(): Promise<SearchIndexStatus> {
   await requireSession();
-  const [editions, editionsWithText, pages, stats] = await Promise.all([
+  const [editions, editionsWithText, pages, meili] = await Promise.all([
     prisma.edition.count({ where: { deletedAt: null } }),
     prisma.edition.count({ where: { deletedAt: null, pages: { some: {} } } }),
     prisma.editionPage.count({ where: { edition: { deletedAt: null } } }),
-    isMeiliConfigured() ? getIndexStats() : Promise.resolve(null),
+    isMeiliConfigured() ? getMeiliStatus() : Promise.resolve(null),
   ]);
-  return {
-    editions,
-    editionsWithText,
-    pages,
-    meili: {
-      configured: isMeiliConfigured(),
-      reachable: stats != null,
-      documents: stats?.numberOfDocuments ?? null,
-      pendingTasks: stats?.pendingTasks ?? 0,
-    },
-  };
+  return { editions, editionsWithText, pages, meili };
 }
 
 /**

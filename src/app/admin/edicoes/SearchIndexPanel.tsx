@@ -21,6 +21,41 @@ const MODE_HELP: Record<ReindexMode, string> = {
   sync: "Reconstrói o índice do Meilisearch a partir do texto já salvo, sem ler os PDFs (rápido).",
 };
 
+function MeiliStatusText({ meili, pages }: { meili: SearchIndexStatus["meili"]; pages: number }) {
+  if (meili == null) {
+    return <span className="text-amber-700">Meilisearch não configurado (MEILI_URL / MEILI_KEY) — busca pelo MariaDB</span>;
+  }
+  switch (meili.state) {
+    case "unreachable":
+      return <span className="text-red-600">Meilisearch inalcançável a partir do app — busca pelo MariaDB</span>;
+    case "bad-key":
+      return <span className="text-red-600">Meilisearch recusou a chave (MEILI_KEY) — busca pelo MariaDB</span>;
+    case "error":
+      return <span className="text-red-600">Erro ao consultar o Meilisearch — busca pelo MariaDB</span>;
+    case "no-index":
+      return (
+        <span className="text-amber-700">
+          Meilisearch conectado, índice ainda vazio — use “Indexar edições sem texto” ou “Reenviar ao Meilisearch”
+        </span>
+      );
+    case "ok":
+      if (meili.pendingTasks > 0) {
+        return (
+          <span className="text-slate-500">
+            Meilisearch processando ({meili.numberOfDocuments} páginas até agora, {meili.pendingTasks} tarefa(s) na
+            fila) — recarregue em instantes
+          </span>
+        );
+      }
+      return (
+        <span className={meili.numberOfDocuments === pages ? "text-green-700" : "text-amber-700"}>
+          Meilisearch: {meili.numberOfDocuments} páginas no índice
+          {meili.numberOfDocuments !== pages && " (diferente do banco — use “Reenviar ao Meilisearch”)"}
+        </span>
+      );
+  }
+}
+
 /**
  * Admin control for the newspaper full-text index. Runs the chosen mode in a
  * loop of short server-action batches (reindexSearchBatchAction), showing
@@ -83,22 +118,11 @@ export default function SearchIndexPanel({ initialStatus }: { initialStatus: Sea
           <p className="mt-0.5 text-xs text-slate-500">
             <strong>{status.editionsWithText}</strong> de {status.editions} edições com texto pesquisável ·{" "}
             {status.pages} páginas ·{" "}
-            {!meili.configured ? (
-              <span className="text-amber-700">Meilisearch não configurado — busca pelo MariaDB</span>
-            ) : !meili.reachable ? (
-              <span className="text-red-600">Meilisearch fora do ar — busca pelo MariaDB</span>
-            ) : meili.pendingTasks > 0 ? (
-              <span className="text-slate-500">
-                Meilisearch processando ({meili.documents} páginas até agora, {meili.pendingTasks} tarefa(s) na fila) —
-                recarregue em instantes
-              </span>
-            ) : (
-              <span className={meili.documents === status.pages ? "text-green-700" : "text-amber-700"}>
-                Meilisearch: {meili.documents} páginas no índice
-                {meili.documents !== status.pages && " (diferente do banco — use “Reenviar ao Meilisearch”)"}
-              </span>
-            )}
+            <MeiliStatusText meili={meili} pages={status.pages} />
           </p>
+          {meili && (meili.state === "unreachable" || meili.state === "bad-key" || meili.state === "error") && (
+            <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{meili.detail}</p>
+          )}
         </div>
       </div>
 
@@ -108,7 +132,7 @@ export default function SearchIndexPanel({ initialStatus }: { initialStatus: Sea
             key={mode}
             type="button"
             onClick={() => run(mode)}
-            disabled={running != null || (mode === "sync" && !meili.configured)}
+            disabled={running != null || (mode === "sync" && (meili == null || meili.state === "unreachable"))}
             title={MODE_HELP[mode]}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
               mode === "missing"

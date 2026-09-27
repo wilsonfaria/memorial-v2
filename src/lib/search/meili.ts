@@ -129,17 +129,41 @@ export async function deleteAllDocuments(): Promise<number> {
   return task.taskUid;
 }
 
-/** Document count plus how many tasks are still queued — right after a reindex the count lags behind. */
-export async function getIndexStats(): Promise<{ numberOfDocuments: number; pendingTasks: number } | null> {
+export type MeiliStatus =
+  | { state: "ok"; numberOfDocuments: number; pendingTasks: number }
+  | { state: "no-index" } // reachable, key accepted, index not created yet (before the first indexing)
+  | { state: "unreachable" | "bad-key" | "error"; detail: string };
+
+/**
+ * Health + index stats for the admin panel, telling apart "can't reach the
+ * server", "server rejects MEILI_KEY" and "index simply not created yet"
+ * (normal on a fresh Meilisearch) instead of lumping them as "down".
+ */
+export async function getMeiliStatus(): Promise<MeiliStatus> {
+  const base = process.env.MEILI_URL!.replace(/\/$/, "");
+  const headers = { Authorization: `Bearer ${process.env.MEILI_KEY}` };
   try {
-    const [stats, pending] = await Promise.all([
-      meiliFetch<{ numberOfDocuments: number }>(`/indexes/${MEILI_INDEX}/stats`, { timeoutMs: 3000 }),
-      meiliFetch<{ total: number }>(`/tasks?statuses=enqueued,processing&indexUids=${MEILI_INDEX}&limit=1`, {
-        timeoutMs: 3000,
-      }),
-    ]);
-    return { numberOfDocuments: stats.numberOfDocuments, pendingTasks: pending.total };
-  } catch {
-    return null;
+    const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(3000), cache: "no-store" });
+    if (!health.ok) return { state: "unreachable", detail: `${base}/health respondeu ${health.status}` };
+  } catch (err) {
+    return { state: "unreachable", detail: `${base}: ${(err as Error).cause ?? (err as Error).message}` };
+  }
+  try {
+    const res = await fetch(`${base}/indexes/${MEILI_INDEX}/stats`, {
+      headers,
+      signal: AbortSignal.timeout(3000),
+      cache: "no-store",
+    });
+    if (res.status === 401 || res.status === 403) return { state: "bad-key", detail: `HTTP ${res.status}` };
+    if (res.status === 404) return { state: "no-index" };
+    if (!res.ok) return { state: "error", detail: `stats → HTTP ${res.status}` };
+    const stats = (await res.json()) as { numberOfDocuments: number };
+    const pending = await meiliFetch<{ total: number }>(
+      `/tasks?statuses=enqueued,processing&indexUids=${MEILI_INDEX}&limit=1`,
+      { timeoutMs: 3000 }
+    );
+    return { state: "ok", numberOfDocuments: stats.numberOfDocuments, pendingTasks: pending.total };
+  } catch (err) {
+    return { state: "error", detail: (err as Error).message };
   }
 }
