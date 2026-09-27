@@ -47,7 +47,7 @@ export default function SponsorFields({ banner }: { banner?: BannerDefaults }) {
         <span className="font-medium text-slate-500">{banner ? "Trocar imagem (opcional)" : "Imagem do banner"}</span>
         <input name="logo" type="file" accept="image/*" required={!banner} className={inputClass} />
         <span className="text-[11px] text-slate-400">
-          Até {formatMaxSize(MAX_IMAGE_BYTES)}. Exibida com 55px de altura (largura proporcional) — prefira logos horizontais.
+          Até {formatMaxSize(MAX_IMAGE_BYTES)}. Exibida com 43px de altura (largura proporcional) — prefira logos horizontais.
         </span>
       </label>
 

@@ -59,22 +59,21 @@ export default function SponsorBar() {
 
   if (banners.length === 0) return null;
 
-  // Static bar (the former homepage "Nossos Patrocinadores" design): label on
-  // the left, the selected logos side by side. 15px gap above the footer;
-  // py-[34px] = the original py-6 plus 20px of height.
+  // Static bar: label on the left, the selected logos side by side. 15px gap
+  // above the footer; 53px of vertical padding in total (26 + 27).
   return (
     <section
       ref={stripRef}
-      aria-label="Patrocinadores"
+      aria-label="Preservam nossa história"
       className="mb-[15px] mt-8 shrink-0 border-y border-paper-200 bg-paper-50"
     >
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 py-[34px] sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 pb-[27px] pt-[26px] sm:px-6 lg:px-8">
         <p className="shrink-0 text-base font-bold uppercase leading-tight tracking-wide text-brand-900">
-          Nossos
+          Preservam
           <br />
-          Patrocinadores
+          nossa história
         </p>
-        <span className="hidden h-14 w-px bg-paper-200 sm:block" />
+        <span className="hidden h-11 w-px bg-paper-200 sm:block" />
 
         <div className="flex flex-1 flex-wrap items-center gap-8">
           {banners.map((banner) => (
@@ -88,7 +87,7 @@ export default function SponsorBar() {
 
 function BannerLogo({ banner }: { banner: PublicBanner }) {
   // eslint-disable-next-line @next/next/no-img-element
-  const logo = <img src={banner.logoUrl} alt={banner.name} className="h-[55px] w-auto object-contain" />;
+  const logo = <img src={banner.logoUrl} alt={banner.name} className="h-[43px] w-auto object-contain" />;
 
   return banner.hasLink ? (
     <a href={`/api/banners/${banner.id}/click`} target="_blank" rel="noopener sponsored">
