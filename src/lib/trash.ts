@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deletePdfFile } from "@/lib/storage";
 import { deleteEditionThumbnail } from "@/lib/thumbnail";
+import { reindexFromDatabase, unindexEditions } from "@/lib/search/indexer";
 import { TRASH_RETENTION_DAYS, type TrashResource, type TrashedItem } from "@/lib/trash-shared";
 
 export * from "@/lib/trash-shared";
@@ -68,6 +69,7 @@ export async function restoreTrashedItem(resource: TrashResource, id: number): P
       return;
     case "edition":
       await prisma.edition.update({ where: { id }, data });
+      await reindexFromDatabase([id]); // its edition_pages rows were kept while trashed
       return;
     case "sponsor":
       await prisma.sponsor.update({ where: { id }, data });
@@ -82,6 +84,7 @@ export async function purgeTrashedItem(resource: TrashResource, id: number): Pro
     if (edition) {
       await deletePdfFile(edition.pdfPath);
       await deleteEditionThumbnail(edition.thumbnailPath);
+      await unindexEditions([id]); // edition_pages rows go with the cascade delete below
     }
   }
 
@@ -123,6 +126,7 @@ export async function purgeExpiredTrash(): Promise<void> {
   });
   await Promise.all(expiredEditions.map((e) => deletePdfFile(e.pdfPath)));
   await Promise.all(expiredEditions.map((e) => deleteEditionThumbnail(e.thumbnailPath)));
+  await unindexEditions(expiredEditions.map((e) => e.id));
 
   await Promise.all([
     prisma.chronicle.deleteMany({ where: { deletedAt: { lt: cutoff } } }),

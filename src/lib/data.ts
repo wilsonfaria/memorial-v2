@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { searchEditionText } from "@/lib/search/search";
 
 export const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -162,26 +163,27 @@ export type EditionFilters = {
  * column to match makes both sides of the LIKE the same explicit collation,
  * which MariaDB allows.
  */
-async function findEditionIdsByTitleOrText(q: string): Promise<number[]> {
+async function findEditionIdsByTitle(q: string): Promise<number[]> {
   const rows = await prisma.$queryRaw<{ id: number }[]>`
     SELECT id FROM editions
     WHERE deletedAt IS NULL
-      AND (title COLLATE utf8mb4_bin LIKE CONCAT('%', ${q}, '%')
-       OR extractedText COLLATE utf8mb4_bin LIKE CONCAT('%', ${q}, '%'))
+      AND title COLLATE utf8mb4_bin LIKE CONCAT('%', ${q}, '%')
   `;
   return rows.map((r) => r.id);
 }
 
+/** Title / edition-number match — used by the admin list. The public text search goes through src/lib/search. */
 export async function buildTitleOrNumberFilter(q: string): Promise<Prisma.EditionWhereInput["OR"]> {
   const asNumber = Number(q.replace(/\D/g, ""));
-  const ids = await findEditionIdsByTitleOrText(q);
+  const ids = await findEditionIdsByTitle(q);
   return [
     ...(ids.length > 0 ? [{ id: { in: ids } }] : []),
     ...(Number.isInteger(asNumber) && asNumber > 0 ? [{ editionNumber: asNumber }] : []),
   ];
 }
 
-async function buildEditionWhere(filters: EditionFilters): Promise<Prisma.EditionWhereInput> {
+/** Decade/year/month filters (no text query — see getFilteredEditionsPaged for `q`). */
+function buildEditionWhere(filters: EditionFilters): Prisma.EditionWhereInput {
   const monthFilter: Prisma.MonthWhereInput = {};
   if (filters.month) monthFilter.month = filters.month;
   if (filters.year || filters.decade) {
@@ -193,50 +195,58 @@ async function buildEditionWhere(filters: EditionFilters): Promise<Prisma.Editio
 
   const where: Prisma.EditionWhereInput = { deletedAt: null };
   if (Object.keys(monthFilter).length > 0) where.month = monthFilter;
-  if (filters.q) {
-    where.OR = await buildTitleOrNumberFilter(filters.q);
-  }
   return where;
 }
 
-export async function getFilteredEditions(filters: EditionFilters) {
-  const where = await buildEditionWhere(filters);
-  const editions = await prisma.edition.findMany({ where, orderBy: { publishedAt: "desc" } });
-  return filters.day ? editions.filter((e) => e.publishedAt.getDate() === filters.day) : editions;
-}
-
 /**
- * Snippet of the matched edition's OCR text around the search term, so a
- * result found via full-text search shows *why* it matched (title-only
- * matches get no snippet — there's nothing to show beyond the title itself).
+ * Text search results in the same shape as the plain listing: the matching
+ * editions in relevance order, each with its best page and a highlighted
+ * snippet (see src/lib/search).
  */
-async function getMatchSnippets(editionIds: number[], q: string): Promise<Record<number, string>> {
-  if (editionIds.length === 0) return {};
-  const rows = await prisma.$queryRaw<{ id: number; snippet: string | null }[]>`
-    SELECT id,
-      SUBSTRING(
-        extractedText,
-        GREATEST(LOCATE(${q} COLLATE utf8mb4_bin, extractedText COLLATE utf8mb4_bin) - 80, 1),
-        220
-      ) AS snippet
-    FROM editions
-    WHERE id IN (${Prisma.join(editionIds)})
-      AND deletedAt IS NULL
-      AND extractedText COLLATE utf8mb4_bin LIKE CONCAT('%', ${q}, '%')
-  `;
-  const map: Record<number, string> = {};
-  for (const row of rows) {
-    if (row.snippet) map[row.id] = row.snippet.trim();
-  }
-  return map;
+async function getTextSearchPage(q: string, filters: EditionFilters, page: number, pageSize: number) {
+  const { hits, total } = await searchEditionText(
+    q,
+    { decade: filters.decade, year: filters.year, month: filters.month, day: filters.day },
+    page,
+    pageSize
+  );
+  const rows = await prisma.edition.findMany({
+    where: { id: { in: hits.map((h) => h.editionId) }, deletedAt: null },
+  });
+  const byId = new Map(rows.map((e) => [e.id, e]));
+  const editions = hits.flatMap((h) => {
+    const e = byId.get(h.editionId);
+    return e ? [{ ...e, matchSnippet: h.snippet, matchPage: h.page }] : [];
+  });
+  return { editions, total };
 }
 
 export async function getFilteredEditionsPaged(
   filters: EditionFilters,
   page: number,
   pageSize: number
-) {
-  const where = await buildEditionWhere(filters);
+): Promise<{
+  editions: (Awaited<ReturnType<typeof prisma.edition.findMany>>[number] & { matchSnippet?: string; matchPage?: number })[];
+  total: number;
+}> {
+  const where = buildEditionWhere(filters);
+  const q = filters.q?.trim();
+
+  if (q) {
+    // A bare number is most likely an edition number ("1220") — list those
+    // first; only when none exists is it searched as text (e.g. a year).
+    if (/^\d+$/.test(q)) {
+      const byNumber = await prisma.edition.findMany({
+        where: { ...where, editionNumber: Number(q) },
+        orderBy: { publishedAt: "desc" },
+      });
+      const matching = filters.day ? byNumber.filter((e) => e.publishedAt.getDate() === filters.day) : byNumber;
+      if (matching.length > 0) {
+        return { editions: matching.slice((page - 1) * pageSize, page * pageSize), total: matching.length };
+      }
+    }
+    return getTextSearchPage(q, filters, page, pageSize);
+  }
 
   // Day-of-month has no SQL-level hierarchy to filter on, so when it's set we
   // fetch the (already narrow, month/year/decade-scoped) match set and
@@ -244,10 +254,7 @@ export async function getFilteredEditionsPaged(
   if (filters.day) {
     const all = await prisma.edition.findMany({ where, orderBy: { publishedAt: "desc" } });
     const editions = all.filter((e) => e.publishedAt.getDate() === filters.day);
-    const total = editions.length;
-    const page1 = editions.slice((page - 1) * pageSize, page * pageSize);
-    const snippets = filters.q ? await getMatchSnippets(page1.map((e) => e.id), filters.q) : {};
-    return { editions: page1.map((e) => ({ ...e, matchSnippet: snippets[e.id] })), total };
+    return { editions: editions.slice((page - 1) * pageSize, page * pageSize), total: editions.length };
   }
 
   const [editions, total] = await Promise.all([
@@ -259,8 +266,7 @@ export async function getFilteredEditionsPaged(
     }),
     prisma.edition.count({ where }),
   ]);
-  const snippets = filters.q ? await getMatchSnippets(editions.map((e) => e.id), filters.q) : {};
-  return { editions: editions.map((e) => ({ ...e, matchSnippet: snippets[e.id] })), total };
+  return { editions, total };
 }
 
 export async function getEditionsForMonth(monthId: number) {

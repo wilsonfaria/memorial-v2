@@ -19,7 +19,7 @@ type EditionDetail = {
 };
 
 export default function EditionModal() {
-  const { openEditionId, closeEdition } = useEditionModal();
+  const { openEditionId, initialPage, closeEdition } = useEditionModal();
   const [edition, setEdition] = useState<EditionDetail | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -40,10 +40,12 @@ export default function EditionModal() {
       /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
+    // Start on the requested page (a text-search hit); clamped once the PDF loads.
+    setPageNumber(initialPage);
     fetch(`/api/editions/${openEditionId}`)
       .then((res) => res.json())
       .then((data) => setEdition(data));
-  }, [openEditionId]);
+  }, [openEditionId, initialPage]);
 
   useEffect(() => {
     if (openEditionId == null) return;
@@ -133,7 +135,10 @@ export default function EditionModal() {
         <div className="flex flex-1 flex-col items-center overflow-auto bg-slate-100 py-6">
           <Document
             file={`/api/editions/${openEditionId}/file`}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadSuccess={({ numPages }) => {
+              setNumPages(numPages);
+              setPageNumber((p) => Math.min(p, numPages));
+            }}
             loading={
               <div className="flex items-center gap-2 py-20 text-sm text-slate-500">
                 <Loader2 size={16} className="animate-spin" />

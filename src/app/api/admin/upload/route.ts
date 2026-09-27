@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { ensureStorageDir, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 import { generateEditionThumbnail } from "@/lib/thumbnail";
+import { indexEditionSafely } from "@/lib/search/indexer";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -110,6 +111,9 @@ async function handleUpload(request: Request): Promise<Response> {
       where: { id: edition.id },
       data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength, thumbnailPath },
     });
+
+    // Page text for search (embedded text layer only; never throws).
+    await indexEditionSafely(edition.id, bytes);
   } catch (err) {
     // Never leave a DB row with no file behind — that's what produced
     // editions that show up in the list but have a "broken" viewer/thumbnail.

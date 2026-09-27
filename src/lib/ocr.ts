@@ -30,20 +30,31 @@ class NodeCanvasFactory {
 // layer, we treat it as "no real text" and fall back to image OCR.
 const TEXT_LAYER_MIN_CHARS = 25;
 
-// Shared hosting has finite CPU/RAM per request; cap how many pages we OCR
-// per edition so one huge scanned issue can't tie up the process for
-// minutes. Operators can re-run extraction later if an issue is truncated.
+// Cap how many pages we OCR per edition so one huge scanned issue can't tie
+// up the process for minutes. Pages past the cap are reported as without text.
 const MAX_OCR_PAGES = 40;
 
+export type ExtractedPage = { page: number; text: string; ocr: boolean };
+
 export type ExtractionResult = {
-  text: string;
-  pagesProcessed: number;
+  /** One entry per page that yielded text, 1-based page numbers. */
+  pages: ExtractedPage[];
   pagesTotal: number;
   ocrPages: number;
-  truncated: boolean;
+  /** Pages that had no text layer and were skipped (OCR off or past MAX_OCR_PAGES). */
+  pagesWithoutText: number;
 };
 
-export async function extractEditionText(pdfBytes: Buffer): Promise<ExtractionResult> {
+/**
+ * Reads the text of every page. The embedded text layer is used when present
+ * (cheap — this archive's scans already carry one). Pages without it are
+ * OCR'd only when `ocr` is true: that's CPU-heavy, so uploads skip it and the
+ * admin "Extrair texto" button opts in per edition.
+ */
+export async function extractEditionPages(
+  pdfBytes: Buffer,
+  { ocr = false }: { ocr?: boolean } = {}
+): Promise<ExtractionResult> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const standardFontDataUrl =
     path.join(process.cwd(), "node_modules", "pdfjs-dist", "standard_fonts").split(path.sep).join("/") + "/";
@@ -55,15 +66,18 @@ export async function extractEditionText(pdfBytes: Buffer): Promise<ExtractionRe
   const pdfDoc = await loadingTask.promise;
 
   const pagesTotal = pdfDoc.numPages;
-  const pagesToProcess = Math.min(pagesTotal, MAX_OCR_PAGES);
   const canvasFactory = new NodeCanvasFactory();
-  const pageTexts: string[] = [];
+  const pages: ExtractedPage[] = [];
   let ocrPages = 0;
+  let pagesWithoutText = 0;
 
   try {
     let worker: Awaited<ReturnType<typeof createOcrWorker>> | null = null;
 
-    for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
+    for (let pageNum = 1; pageNum <= pagesTotal; pageNum++) {
+      // pdf.js parses on the main thread in Node; yield between pages so a
+      // bulk reindex running inside the web server doesn't starve requests.
+      await new Promise((resolve) => setImmediate(resolve));
       const page = await pdfDoc.getPage(pageNum);
 
       const textContent = await page.getTextContent();
@@ -74,7 +88,12 @@ export async function extractEditionText(pdfBytes: Buffer): Promise<ExtractionRe
         .trim();
 
       if (layerText.length >= TEXT_LAYER_MIN_CHARS) {
-        pageTexts.push(layerText);
+        pages.push({ page: pageNum, text: layerText, ocr: false });
+        continue;
+      }
+
+      if (!ocr || ocrPages >= MAX_OCR_PAGES) {
+        pagesWithoutText++;
         continue;
       }
 
@@ -95,7 +114,9 @@ export async function extractEditionText(pdfBytes: Buffer): Promise<ExtractionRe
 
         const pngBuffer = await canvasAndContext.canvas.encode("png");
         const { data } = await worker.recognize(pngBuffer);
-        pageTexts.push(data.text.replace(/\s+/g, " ").trim());
+        const ocrText = data.text.replace(/\s+/g, " ").trim();
+        if (ocrText) pages.push({ page: pageNum, text: ocrText, ocr: true });
+        else pagesWithoutText++;
         ocrPages++;
       } finally {
         canvasFactory.destroy(canvasAndContext);
@@ -107,13 +128,7 @@ export async function extractEditionText(pdfBytes: Buffer): Promise<ExtractionRe
     await pdfDoc.destroy();
   }
 
-  return {
-    text: pageTexts.filter(Boolean).join("\n\n"),
-    pagesProcessed: pagesToProcess,
-    pagesTotal,
-    ocrPages,
-    truncated: pagesTotal > pagesToProcess,
-  };
+  return { pages, pagesTotal, ocrPages, pagesWithoutText };
 }
 
 async function createOcrWorker() {

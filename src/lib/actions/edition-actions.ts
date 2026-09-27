@@ -2,14 +2,22 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { writeFile, readFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { ensureStorageDir, absolutePdfPath, STORAGE_ROOT } from "@/lib/storage";
+import { ensureStorageDir, STORAGE_ROOT } from "@/lib/storage";
 import { MAX_PDF_BYTES, formatMaxSize } from "@/lib/upload-limits";
 import { generateEditionThumbnail } from "@/lib/thumbnail";
-import { extractEditionText } from "@/lib/ocr";
+import {
+  indexEdition,
+  indexEditionSafely,
+  reindexBatch,
+  unindexEditions,
+  type ReindexBatchResult,
+  type ReindexMode,
+} from "@/lib/search/indexer";
+import { getIndexStats, isMeiliConfigured } from "@/lib/search/meili";
 
 async function requireSession() {
   const session = await getSession();
@@ -78,6 +86,9 @@ export async function createEditionAction(
       where: { id: edition.id },
       data: { pdfPath: relPath, fileSizeBytes: bytes.byteLength, thumbnailPath },
     });
+
+    // Page text for search (embedded text layer only; never throws).
+    await indexEditionSafely(edition.id, bytes);
   } catch (err) {
     // Never leave a DB row with no file behind.
     await prisma.edition.delete({ where: { id: edition.id } }).catch(() => {});
@@ -97,6 +108,7 @@ export async function deleteEditionAction(formData: FormData) {
   const id = Number(formData.get("id"));
 
   await prisma.edition.update({ where: { id }, data: { deletedAt: new Date() } }).catch(() => {});
+  await unindexEditions([id]);
 
   revalidatePath("/admin/edicoes");
   revalidatePath("/");
@@ -106,11 +118,9 @@ export async function deleteEditionAction(formData: FormData) {
 export type OcrActionState = { error?: string; success?: string } | undefined;
 
 /**
- * Runs text extraction (embedded PDF text layer, falling back to OCR for
- * scanned pages) for one edition and stores the result for full-text search.
- * Deliberately single-edition and admin-triggered rather than automatic on
- * upload: OCR is CPU-heavy and shared hosting has tight process limits, so
- * bulk-processing hundreds of issues at once would risk taking the site down.
+ * Re-extracts one edition's page text — this time with OCR for pages that
+ * have no embedded text layer — and re-indexes it for search. Uploads only
+ * read the embedded text (cheap); OCR is CPU-heavy, so it stays opt-in here.
  */
 export async function extractEditionTextAction(
   _prevState: OcrActionState,
@@ -122,30 +132,23 @@ export async function extractEditionTextAction(
   const edition = await prisma.edition.findUnique({ where: { id } });
   if (!edition) return { error: "Edição não encontrada." };
 
-  let bytes: Buffer;
   try {
-    bytes = await readFile(absolutePdfPath(edition.pdfPath));
-  } catch {
-    return { error: "Não foi possível ler o arquivo PDF desta edição." };
-  }
-
-  try {
-    const result = await extractEditionText(bytes);
-    await prisma.edition.update({ where: { id }, data: { extractedText: result.text || null } });
+    const result = await indexEdition(id, { ocr: true });
 
     revalidatePath("/admin/edicoes");
     revalidatePath("/edicoes");
 
-    if (!result.text) {
+    if (result.pagesWithText === 0) {
       return { error: "Nenhum texto foi reconhecido nesta edição." };
     }
-    const parts = [`Texto extraído de ${result.pagesProcessed} de ${result.pagesTotal} página(s)`];
+    const parts = [`Texto de ${result.pagesWithText} de ${result.pagesTotal} página(s) indexado`];
     if (result.ocrPages > 0) parts.push(`${result.ocrPages} via OCR`);
-    if (result.truncated) parts.push("processamento limitado por tamanho — rode novamente se preciso");
+    if (result.pagesWithoutText > 0) parts.push(`${result.pagesWithoutText} sem texto reconhecível`);
+    if (result.meili === "error") parts.push("atenção: o Meilisearch não aceitou — use “Indexar busca”");
     return { success: `${parts.join(", ")}.` };
   } catch (err) {
     console.error("Falha ao extrair texto da edição:", err);
-    return { error: "Falha ao processar o PDF para extração de texto." };
+    return { error: "Falha ao ler ou processar o PDF desta edição." };
   }
 }
 
@@ -155,9 +158,60 @@ export async function bulkDeleteEditionsAction(ids: number[]) {
   if (ids.length === 0) return { error: "Nenhuma edição selecionada." };
 
   const result = await prisma.edition.updateMany({ where: { id: { in: ids } }, data: { deletedAt: new Date() } });
+  await unindexEditions(ids);
 
   revalidatePath("/admin/edicoes");
   revalidatePath("/");
   revalidatePath("/edicoes");
   return { success: `${result.count} edição(ões) movida(s) para a lixeira.` };
+}
+
+export type SearchIndexStatus = {
+  editions: number;
+  editionsWithText: number;
+  pages: number;
+  meili: { configured: boolean; reachable: boolean; documents: number | null; pendingTasks: number };
+};
+
+export async function getSearchIndexStatusAction(): Promise<SearchIndexStatus> {
+  await requireSession();
+  const [editions, editionsWithText, pages, stats] = await Promise.all([
+    prisma.edition.count({ where: { deletedAt: null } }),
+    prisma.edition.count({ where: { deletedAt: null, pages: { some: {} } } }),
+    prisma.editionPage.count({ where: { edition: { deletedAt: null } } }),
+    isMeiliConfigured() ? getIndexStats() : Promise.resolve(null),
+  ]);
+  return {
+    editions,
+    editionsWithText,
+    pages,
+    meili: {
+      configured: isMeiliConfigured(),
+      reachable: stats != null,
+      documents: stats?.numberOfDocuments ?? null,
+      pendingTasks: stats?.pendingTasks ?? 0,
+    },
+  };
+}
+
+/**
+ * One step of the admin "Indexar busca" loop (see SearchIndexPanel): the
+ * client calls this repeatedly with the returned cursor, so each request
+ * stays short no matter how many PDFs there are.
+ */
+export async function reindexSearchBatchAction(
+  mode: ReindexMode,
+  cursor: number
+): Promise<ReindexBatchResult | { error: string }> {
+  await requireSession();
+  if (!["missing", "all", "sync"].includes(mode)) return { error: "Modo inválido." };
+  if (mode === "sync" && !isMeiliConfigured()) return { error: "Meilisearch não configurado (MEILI_URL / MEILI_KEY)." };
+  try {
+    const result = await reindexBatch(mode, cursor, mode === "sync" ? 100 : 8);
+    if (result.nextCursor == null) revalidatePath("/admin/edicoes");
+    return result;
+  } catch (err) {
+    console.error("Falha ao indexar a busca:", err);
+    return { error: (err as Error).message };
+  }
 }

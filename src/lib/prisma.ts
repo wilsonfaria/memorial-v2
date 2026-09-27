@@ -19,6 +19,14 @@ function withPoolLimit(url: string): string {
     if (!parsed.searchParams.has("connectionLimit")) {
       parsed.searchParams.set("connectionLimit", "5");
     }
+    // The mariadb driver's default connectTimeout is 1s. Under CPU load (a
+    // search reindex parsing PDFs in this same process, a dev-server compile)
+    // the handshake can take longer; the driver then abandons it (MariaDB
+    // counts an "aborted connect"), the pool can't grow, and every page waits
+    // out the 10s acquire timeout. A generous connect timeout avoids that.
+    if (!parsed.searchParams.has("connectTimeout")) {
+      parsed.searchParams.set("connectTimeout", "10000");
+    }
     return parsed.toString();
   } catch {
     return url;

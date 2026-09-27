@@ -6,6 +6,8 @@ import CreatePanel from "@/components/admin/CreatePanel";
 import EditionForm from "@/components/admin/EditionForm";
 import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
+import SearchIndexPanel from "./SearchIndexPanel";
+import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,7 @@ export default async function AdminEditionsPage({
     where.OR = await buildTitleOrNumberFilter(q);
   }
 
-  const [newspapers, distinctYears, total, editions] = await Promise.all([
+  const [newspapers, distinctYears, total, editions, searchStatus] = await Promise.all([
     prisma.newspaper.findMany({
       orderBy: { id: "asc" },
       include: {
@@ -65,12 +67,12 @@ export default async function AdminEditionsPage({
         publishedAt: true,
         fileSizeBytes: true,
         editionNumber: true,
-        // Booleanize below — a page of 20 issues' full OCR text can be
-        // hundreds of KB and this list only needs to know whether it exists.
-        extractedText: true,
+        // Only whether the edition has searchable page text (edition_pages).
+        _count: { select: { pages: true } },
         month: { select: { year: { select: { year: true, decade: { select: { label: true } } } } } },
       },
     }),
+    getSearchIndexStatusAction(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -96,6 +98,8 @@ export default async function AdminEditionsPage({
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
       />
 
+      <SearchIndexPanel initialStatus={searchStatus} />
+
       <CreatePanel label="Nova edição" title="Nova edição">
         <EditionForm newspapers={newspapers} />
       </CreatePanel>
@@ -106,7 +110,7 @@ export default async function AdminEditionsPage({
         {total === 0 ? "Nenhuma edição encontrada." : `Mostrando ${from} - ${to} de ${total} edição(ões).`}
       </p>
       <EditionsList
-        editions={editions.map(({ extractedText, ...e }) => ({ ...e, hasExtractedText: Boolean(extractedText) }))}
+        editions={editions.map(({ _count, ...e }) => ({ ...e, hasExtractedText: _count.pages > 0 }))}
       />
 
       {totalPages > 1 && (

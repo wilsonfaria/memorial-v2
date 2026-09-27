@@ -394,6 +394,25 @@ model Month {
   @@map("months")
 }
 
+/// One page of an edition's PDF with its text (embedded text layer, or OCR
+/// for scanned pages). Searched through Meilisearch when configured, with
+/// this table's FULLTEXT index as the fallback — Meilisearch can always be
+/// rebuilt from here.
+model EditionPage {
+  editionId Int
+  edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  /// 1-based page number within the PDF
+  page      Int
+  text      String   @db.MediumText
+  /// True when the text came from OCR rather than the PDF's own text layer
+  ocr       Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@id([editionId, page])
+  @@fulltext([text])
+  @@map("edition_pages")
+}
+
 model Edition {
   id            Int      @id @default(autoincrement())
   title         String
@@ -409,13 +428,14 @@ model Edition {
   monthId       Int
   month         Month    @relation(fields: [monthId], references: [id], onDelete: Cascade)
 
-  /// Text layer / OCR output, populated on demand from the admin edition list — powers full-text search on /edicoes.
-  extractedText String?  @db.LongText
   createdAt     DateTime @default(now())
   /// Soft-delete: set when moved to the admin trash, cleared on restore. Null = live.
   deletedAt     DateTime?
 
   events AnalyticsEvent[]
+  /// Text of each PDF page — the source of truth for full-text search
+  /// (see src/lib/search). Filled on upload and by the admin "Indexar busca".
+  pages  EditionPage[]
 
   @@index([publishedAt])
   @@map("editions")

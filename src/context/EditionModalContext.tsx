@@ -4,22 +4,25 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 
 type EditionModalContextValue = {
   openEditionId: number | null;
-  openEdition: (id: number) => void;
+  /** Page the viewer should start on (1-based) — e.g. the page a text search matched. */
+  initialPage: number;
+  openEdition: (id: number, page?: number) => void;
   closeEdition: () => void;
 };
 
 const EditionModalContext = createContext<EditionModalContextValue | null>(null);
 
 export function EditionModalProvider({ children }: { children: ReactNode }) {
-  const [openEditionId, setOpenEditionId] = useState<number | null>(null);
+  const [open, setOpen] = useState<{ id: number; page: number } | null>(null);
 
   const value = useMemo(
     () => ({
-      openEditionId,
-      openEdition: (id: number) => setOpenEditionId(id),
-      closeEdition: () => setOpenEditionId(null),
+      openEditionId: open?.id ?? null,
+      initialPage: open?.page ?? 1,
+      openEdition: (id: number, page = 1) => setOpen({ id, page: Math.max(1, page) }),
+      closeEdition: () => setOpen(null),
     }),
-    [openEditionId]
+    [open]
   );
 
   return (

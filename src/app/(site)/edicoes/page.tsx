@@ -58,7 +58,14 @@ export default async function AllEditionsPage({
 
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex items-baseline justify-between gap-4">
-            <h1 className="text-xl font-semibold text-brand-900">Todas as edições</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold text-brand-900">
+                {params.q ? `Busca: “${params.q}”` : "Todas as edições"}
+              </h1>
+              {params.q && (
+                <p className="text-xs text-slate-400">No texto das páginas dos jornais · ordenado por relevância</p>
+              )}
+            </div>
             <p className="shrink-0 text-xs text-slate-400">
               {total === 0 ? "Nenhum resultado" : `${from} - ${to} de ${total}`}
             </p>
@@ -66,7 +73,9 @@ export default async function AllEditionsPage({
 
           {editions.length === 0 ? (
             <p className="py-10 text-center text-sm text-slate-400">
-              Nenhuma edição encontrada com esses filtros.
+              {params.q
+                ? "Nada encontrado no texto dos jornais. Tente outra palavra ou remova os filtros."
+                : "Nenhuma edição encontrada com esses filtros."}
             </p>
           ) : (
             editions.map((edition) => <EditionResultRow key={edition.id} edition={edition} />)

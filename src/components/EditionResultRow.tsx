@@ -3,18 +3,25 @@
 import { Newspaper } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
 import { formatDate, formatFileSize } from "@/lib/format";
+import { splitSnippet } from "@/lib/search/highlight";
 import type { EditionSummary } from "@/components/EditionCard";
 
-type EditionResultSummary = EditionSummary & { fileSizeBytes: number | null; matchSnippet?: string };
+type EditionResultSummary = EditionSummary & {
+  fileSizeBytes: number | null;
+  /** Text-search hit: snippet with highlight markers (see lib/search/highlight) and the page it's on. */
+  matchSnippet?: string;
+  matchPage?: number;
+};
 
 export default function EditionResultRow({ edition }: { edition: EditionResultSummary }) {
   const { openEdition } = useEditionModal();
+  const open = () => openEdition(edition.id, edition.matchPage);
 
   return (
     <div className="flex flex-col gap-1 border-b border-paper-200 py-1.5 first:pt-0 last:border-b-0">
       <div className="flex items-center gap-3">
         <button
-          onClick={() => openEdition(edition.id)}
+          onClick={open}
           className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-b from-support-50 to-support-100"
         >
           {edition.thumbnailPath ? (
@@ -29,10 +36,7 @@ export default function EditionResultRow({ edition }: { edition: EditionResultSu
           )}
         </button>
 
-        <button
-          onClick={() => openEdition(edition.id)}
-          className="min-w-0 flex-1 truncate text-left text-sm font-medium text-brand-700 hover:underline"
-        >
+        <button onClick={open} className="min-w-0 flex-1 truncate text-left text-sm font-medium text-brand-700 hover:underline">
           {edition.title}
         </button>
 
@@ -42,21 +46,26 @@ export default function EditionResultRow({ edition }: { edition: EditionResultSu
           {edition.fileSizeBytes ? ` · ${formatFileSize(edition.fileSizeBytes)}` : ""}
         </span>
 
-        <button
-          onClick={() => openEdition(edition.id)}
-          className="shrink-0 text-xs font-medium text-accent-600 hover:underline"
-        >
-          Mostrar mais
+        <button onClick={open} className="shrink-0 text-xs font-medium text-accent-600 hover:underline">
+          {edition.matchPage ? `Abrir na pág. ${edition.matchPage}` : "Mostrar mais"}
         </button>
       </div>
 
       {edition.matchSnippet && (
         <button
-          onClick={() => openEdition(edition.id)}
-          className="ml-12 truncate text-left text-xs italic text-slate-500"
-          title={edition.matchSnippet}
+          onClick={open}
+          className="ml-12 line-clamp-2 text-left text-xs leading-relaxed text-slate-500 hover:text-slate-700"
         >
-          &ldquo;...{edition.matchSnippet}...&rdquo;
+          {edition.matchPage && <span className="mr-1.5 font-semibold text-slate-400">pág. {edition.matchPage}</span>}
+          {splitSnippet(edition.matchSnippet).map((part, i) =>
+            part.hit ? (
+              <mark key={i} className="rounded bg-accent-100 px-0.5 font-medium text-accent-900">
+                {part.text}
+              </mark>
+            ) : (
+              <span key={i}>{part.text}</span>
+            )
+          )}
         </button>
       )}
     </div>

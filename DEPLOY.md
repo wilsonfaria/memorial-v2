@@ -37,7 +37,30 @@ Em **Import Backup**, envie o dump do banco (`.sql.gz`) — o dump não tem
 | `SETTINGS_ENCRYPTION_KEY` | a **mesma** usada no ambiente de onde vier o `/data/config`; senão, nova |
 | `SITE_URL` / `APP_URL` | domínio final com `https://` |
 
-## 4. Arquivos das edições
+## 4. Busca no texto dos jornais (Meilisearch)
+
+O texto de cada página dos PDFs fica na tabela `edition_pages` (fonte
+oficial) e é pesquisado pelo **Meilisearch** — tolerante a erros de digitação,
+o que importa muito para texto de OCR. Sem Meilisearch (ou se ele cair), a
+busca usa automaticamente o FULLTEXT do MariaDB.
+
+1. No Coolify, **+ New Resource → Meilisearch** (mesmo projeto/servidor).
+2. No app do Memorial, acrescente as variáveis (**Not available during build**):
+
+| Variável | Valor |
+|---|---|
+| `MEILI_URL` | URL **interna** do serviço, ex.: `http://meilisearch-xxxx:7700` |
+| `MEILI_KEY` | a *master key* do serviço (fica só no servidor; o navegador nunca fala com o Meilisearch) |
+
+3. Redeploy e, no admin, **Edições → "Busca no texto dos jornais" → Indexar
+   edições sem texto**. Lê o texto de todos os PDFs de `/data/pdfs` em lotes
+   curtos (≈1 s por edição); pode fechar a página e rodar de novo depois —
+   continua de onde parou.
+4. Daqui em diante é automático: upload indexa, lixeira remove, restaurar
+   devolve. Se o Meilisearch for recriado, use **Reenviar ao Meilisearch**
+   (reconstrói o índice a partir do banco em segundos, sem ler PDFs).
+
+## 5. Arquivos das edições
 
 As miniaturas vão pelo Git (`public/uploads/thumbnails`) e são copiadas para o
 volume na inicialização. Os PDFs (~4,5 GB) **não** vão no Git nem no dump do
