@@ -2,7 +2,8 @@
 
 O repositório tem um `Dockerfile` pronto. A cada inicialização o container:
 1. aplica as migrations pendentes (`prisma migrate deploy`);
-2. copia as imagens de `seed/uploads/` para o volume (nunca sobrescreve);
+2. copia as imagens de `public/uploads/` (inclusive as miniaturas das edições)
+   para o volume, sem nunca sobrescrever;
 3. sobe o Next.js na porta 3000.
 
 ## 1. Banco de dados
@@ -38,10 +39,12 @@ Em **Import Backup**, envie o dump do banco (`.sql.gz`) — o dump não tem
 
 ## 4. Arquivos das edições
 
-Os PDFs e as miniaturas **não** vão no Git nem no dump do banco. Copie-os para
-o volume (`/data/pdfs` e `/data/uploads/thumbnails`) — de preferência
-servidor a servidor, com `rsync` via SSH. Os arquivos precisam pertencer ao
-usuário `node` do container (uid 1000): `chown -R 1000:1000` na pasta do volume.
+As miniaturas vão pelo Git (`public/uploads/thumbnails`) e são copiadas para o
+volume na inicialização. Os PDFs (~4,5 GB) **não** vão no Git nem no dump do
+banco: copie-os para `/data/pdfs` (estrutura `AAAA/MM/edicao-ID.pdf`) com
+`rsync`/`scp`. O volume precisa pertencer ao usuário `node` do container
+(uid 1000) — se o Coolify criá-lo como root, rode `chown -R 1000:1000` na
+pasta do volume (`/var/lib/docker/volumes/<nome>/_data`).
 
 ---
 

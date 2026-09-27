@@ -11,7 +11,7 @@
 #   /data/config   db/smtp config from admin (APP_CONFIG_ROOT)
 #
 # On every start the container applies pending Prisma migrations, copies the
-# committed seed/uploads images into /data/uploads (never overwriting), then
+# committed public/uploads images into /data/uploads (never overwriting), then
 # starts Next.js. Required env: DATABASE_URL, AUTH_SECRET,
 # SETTINGS_ENCRYPTION_KEY, SITE_URL, APP_URL.
 
@@ -63,7 +63,6 @@ COPY --from=build --chown=node:node /app/.next ./.next
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/prisma ./prisma
 COPY --from=build --chown=node:node /app/scripts ./scripts
-COPY --from=build --chown=node:node /app/seed ./seed
 COPY --from=build --chown=node:node /app/src/generated ./src/generated
 
 USER node

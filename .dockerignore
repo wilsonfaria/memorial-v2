@@ -9,9 +9,10 @@ next-env.d.ts
 .env*
 config/*.json
 
-# Runtime data — lives on the /data volume, never baked into the image
+# Runtime data — lives on the /data volume, never baked into the image.
+# (public/uploads IS included: scripts/seed-uploads.mjs copies it to the
+# volume on start, never overwriting.)
 storage
-public/uploads
 
 # Repo / tooling noise
 .git

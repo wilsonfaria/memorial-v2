@@ -1,17 +1,19 @@
-// One-time content seed for a fresh server: copies the site images committed
-// under seed/uploads/ (hero slides, banners, gallery, homepage photos — the
-// ones the database dump points at) into the real uploads folder
-// (UPLOADS_STORAGE_ROOT, or public/uploads when unset — same rule as
-// src/lib/uploads-root.ts).
+// Content seed for a server whose uploads live on a volume: copies the images
+// committed under public/uploads/ (hero slides, banners, gallery, homepage
+// photos, edition cover thumbnails — the ones the database points at) into
+// the real uploads folder, UPLOADS_STORAGE_ROOT (e.g. /data/uploads in the
+// Docker image). Same resolution rule as src/lib/uploads-root.ts.
 //
 // Only files that don't exist yet are copied, so running it on every start is
 // safe: anything the admin has since replaced or added on the server is never
-// overwritten. Run with `npm run seed:uploads` (start:prod runs it too).
+// overwritten. When UPLOADS_STORAGE_ROOT is unset (local dev) the source and
+// target are the same folder and there's nothing to do.
+// Run with `npm run seed:uploads` (start:prod and the Dockerfile run it too).
 import { cp, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-const SOURCE = path.join(process.cwd(), "seed", "uploads");
-const TARGET = process.env.UPLOADS_STORAGE_ROOT ?? path.join(process.cwd(), "public", "uploads");
+const SOURCE = path.join(process.cwd(), "public", "uploads");
+const TARGET = path.resolve(process.env.UPLOADS_STORAGE_ROOT ?? SOURCE);
 
 async function exists(p) {
   try {
@@ -30,8 +32,12 @@ async function walk(dir) {
   return files.flat();
 }
 
+if (TARGET === path.resolve(SOURCE)) {
+  console.log("[seed-uploads] uploads are served from public/uploads itself — nothing to do.");
+  process.exit(0);
+}
 if (!(await exists(SOURCE))) {
-  console.log("[seed-uploads] seed/uploads not found — nothing to do.");
+  console.log("[seed-uploads] public/uploads not found — nothing to do.");
   process.exit(0);
 }
 
