@@ -39,12 +39,22 @@ export function isMeiliConfigured(): boolean {
   return Boolean(process.env.MEILI_URL && process.env.MEILI_KEY);
 }
 
+/**
+ * MEILI_URL without trailing slash. A value typed without a scheme
+ * ("meili-host:7700") would make fetch fail with "unknown scheme", so plain
+ * http:// is assumed — the usual case for Coolify's internal service URL.
+ */
+function meiliBaseUrl(): string {
+  const raw = process.env.MEILI_URL!.trim().replace(/\/+$/, "");
+  return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+}
+
 export async function meiliFetch<T = unknown>(
   path: string,
   init: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
   const { timeoutMs = 15000, ...rest } = init;
-  const res = await fetch(`${process.env.MEILI_URL!.replace(/\/$/, "")}${path}`, {
+  const res = await fetch(`${meiliBaseUrl()}${path}`, {
     ...rest,
     headers: {
       "Content-Type": "application/json",
@@ -140,7 +150,7 @@ export type MeiliStatus =
  * (normal on a fresh Meilisearch) instead of lumping them as "down".
  */
 export async function getMeiliStatus(): Promise<MeiliStatus> {
-  const base = process.env.MEILI_URL!.replace(/\/$/, "");
+  const base = meiliBaseUrl();
   const headers = { Authorization: `Bearer ${process.env.MEILI_KEY}` };
   try {
     const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(3000), cache: "no-store" });
