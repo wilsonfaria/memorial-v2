@@ -35,7 +35,13 @@ export default async function EntityIndex({ kind, q, page }: { kind: EntityKind;
       <Breadcrumb items={[{ label: "Início", href: "/" }, { label: copy.title }]} />
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="mb-1 text-2xl font-semibold text-brand-900">{copy.title}</h1>
-        <p className="mb-6 max-w-prose text-sm leading-relaxed text-slate-500">{copy.intro}</p>
+        <p className="mb-6 max-w-prose text-sm leading-relaxed text-slate-500">
+          {copy.intro} Matérias sobre saúde, polícia, religião e política ficam fora. Saiba mais ou peça correção em{" "}
+          <Link href="/dados-pessoais" className="text-brand-700 underline">
+            dados pessoais no acervo
+          </Link>
+          .
+        </p>
 
         <form action={copy.base} className="mb-6 flex max-w-md items-center gap-2">
           <div className="relative flex-1">

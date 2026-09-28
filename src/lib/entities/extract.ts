@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { reflowText } from "@/lib/ocr-revision/reflow";
 import { DailyQuotaError, ModelBusyError, generateJson, noRealError } from "@/lib/ocr-revision/gemini";
 import { displayName, entityKey, isUsableName, slugFromKey, splitHonorific } from "@/lib/entities/normalize";
-import { ARTICLE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
+import { ARTICLE_KINDS, PRIVATE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
 
-export { ARTICLE_KINDS, KIND_LABEL, type ArticleKind } from "@/lib/entities/kinds";
+export { ARTICLE_KINDS, KIND_LABEL, PRIVATE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
 
 /**
  * Structured extraction: turns a page's transcription into articles with a
@@ -69,7 +69,11 @@ export function parseExtraction(json: unknown): ParsedArticle[] {
   });
 }
 
-/** Recomputes counts and first/last dates; drops entities left with no mention. */
+/**
+ * Recomputes counts and first/last dates from public items only (PRIVATE_KINDS
+ * left out). Drops an entity only when it has no mention at all and isn't
+ * hidden — a hidden one must still be hidden after its page is re-extracted.
+ */
 export async function refreshEntities(ids?: number[]) {
   if (ids && ids.length === 0) return;
   const only = ids ? Prisma.sql`WHERE en.id IN (${Prisma.join([...new Set(ids)])})` : Prisma.empty;
@@ -79,13 +83,15 @@ export async function refreshEntities(ids?: number[]) {
     LEFT JOIN (
       SELECT m.entityId, COUNT(*) AS n, MIN(ed.publishedAt) AS first, MAX(ed.publishedAt) AS last
       FROM entity_mentions m
-      JOIN articles a ON a.id = m.articleId
+      JOIN articles a ON a.id = m.articleId AND a.kind NOT IN (${Prisma.join(PRIVATE_KINDS)})
       JOIN editions ed ON ed.id = a.editionId AND ed.deletedAt IS NULL
       GROUP BY m.entityId
     ) s ON s.entityId = en.id
     SET en.mentionCount = COALESCE(s.n, 0), en.firstDate = s.first, en.lastDate = s.last
     ${only}`;
-  await prisma.entity.deleteMany({ where: { mentionCount: 0, ...(ids ? { id: { in: ids } } : {}) } });
+  await prisma.entity.deleteMany({
+    where: { hidden: false, mentions: { none: {} }, ...(ids ? { id: { in: ids } } : {}) },
+  });
 }
 
 /** Removes a page's articles (e.g. its text is being redone) and updates the entities they named. */
@@ -125,12 +131,21 @@ async function upsertEntity(kind: "person" | "place", printed: string): Promise<
  */
 export async function rebuildEntityGroups(): Promise<{ mentions: number; entities: number }> {
   const mentions = await prisma.entityMention.findMany({
-    select: { id: true, surface: true, entityId: true, entity: { select: { kind: true } } },
+    select: {
+      id: true,
+      surface: true,
+      entityId: true,
+      entity: { select: { kind: true, hidden: true, hiddenAt: true, hiddenNote: true } },
+    },
   });
   for (const m of mentions) {
     const kind = m.entity.kind as "person" | "place";
     const id = await upsertEntity(kind, m.surface);
-    if (id !== m.entityId) await prisma.entityMention.update({ where: { id: m.id }, data: { entityId: id } });
+    if (id === m.entityId) continue;
+    await prisma.entityMention.update({ where: { id: m.id }, data: { entityId: id } });
+    // A hidden person stays hidden when their mentions move to a new grouping.
+    const { hidden, hiddenAt, hiddenNote } = m.entity;
+    if (hidden) await prisma.entity.update({ where: { id }, data: { hidden, hiddenAt, hiddenNote } });
   }
   await refreshEntities();
   // Names stored before displayName() existed.

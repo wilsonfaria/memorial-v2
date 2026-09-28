@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Pessoas no jornal",
   description: "Pessoas citadas no jornal Alto São Francisco, com todas as menções ao longo dos anos.",
+  // Out of search engines (LGPD — see /dados-pessoais); /lugares stays indexed.
+  robots: { index: false, follow: true },
 };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ q?: string; p?: string }> }) {

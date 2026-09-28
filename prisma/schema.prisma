@@ -575,9 +575,16 @@ model Entity {
   name         String    @db.VarChar(255)
   key          String    @db.VarChar(255)
   slug         String    @db.VarChar(255)
+  /// Public mentions only (sensitive article kinds are left out, see PRIVATE_KINDS)
   mentionCount Int       @default(0)
   firstDate    DateTime?
   lastDate     DateTime?
+  /// Hidden by an admin (LGPD request): no public page, name masked elsewhere.
+  /// Survives re-extraction — the row is kept even with no mentions.
+  hidden       Boolean   @default(false)
+  hiddenAt     DateTime?
+  /// Who asked and when, how the request arrived
+  hiddenNote   String?   @db.Text
 
   mentions EntityMention[]
 

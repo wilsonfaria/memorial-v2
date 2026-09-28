@@ -61,9 +61,14 @@ export default function EntityDetail({ data }: { data: Data }) {
               <p className="mt-2 text-xs text-slate-400">Também grafado: {spellings.slice(0, 8).join(", ")}</p>
             )}
             <p className="mb-8 mt-4 max-w-prose rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
-              Página montada automaticamente pela IA a partir das transcrições. Pessoas diferentes com o mesmo nome podem
-              aparecer juntas, e a mesma pessoa pode estar separada se o jornal a citou de outra forma — confira sempre no
-              jornal original.
+              Página montada automaticamente pela IA a partir das transcrições — pode conter erros. Pessoas diferentes com
+              o mesmo nome podem aparecer juntas, e a mesma pessoa pode estar separada se o jornal a citou de outra forma
+              — confira sempre no jornal original. Matérias sobre saúde, polícia, religião e política ficam fora das
+              fichas. Veja{" "}
+              <Link href="/dados-pessoais" className="underline hover:text-amber-950">
+                dados pessoais no acervo
+              </Link>{" "}
+              para pedir correção ou retirada.
             </p>
 
             <MentionTimeline items={items} />

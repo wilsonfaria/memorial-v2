@@ -1,8 +1,14 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { entityKey } from "@/lib/entities/normalize";
+import { PRIVATE_KINDS, publicMentions } from "@/lib/entities/kinds";
+import { nameMasker } from "@/lib/entities/mask";
 
-/** Public reads for the people/places pages (/pessoas, /lugares). */
+/**
+ * Public reads for the people/places pages (/pessoas, /lugares). Hidden
+ * entities never show up, and items of a sensitive kind (PRIVATE_KINDS) are
+ * left out — see /dados-pessoais.
+ */
 
 export type EntityKind = "person" | "place";
 const PAGE_SIZE = 60;
@@ -10,7 +16,12 @@ const PAGE_SIZE = 60;
 export async function listEntities(kind: EntityKind, q: string | undefined, page: number) {
   // Search on the folded key, so "Piumhy" finds "Piumhi" and "Motta" finds "Mota".
   const folded = q?.trim() ? entityKey(q, kind) : "";
-  const where: Prisma.EntityWhereInput = { kind, mentionCount: { gt: 0 }, ...(folded ? { key: { contains: folded } } : {}) };
+  const where: Prisma.EntityWhereInput = {
+    kind,
+    hidden: false,
+    mentionCount: { gt: 0 },
+    ...(folded ? { key: { contains: folded } } : {}),
+  };
   const [total, items] = await Promise.all([
     prisma.entity.count({ where }),
     prisma.entity.findMany({
@@ -35,7 +46,7 @@ export type EntityMentionRow = {
 
 export async function getEntity(kind: EntityKind, slug: string) {
   const entity = await prisma.entity.findUnique({ where: { kind_slug: { kind, slug } } });
-  if (!entity || entity.mentionCount === 0) return null;
+  if (!entity || entity.hidden || entity.mentionCount === 0) return null;
 
   const mentions = await prisma.entityMention.findMany({
     where: { entityId: entity.id, article: { edition: { deletedAt: null } } },
@@ -55,8 +66,13 @@ export async function getEntity(kind: EntityKind, slug: string) {
       },
     },
   });
-  const rows: EntityMentionRow[] = mentions
-    .map(({ article: { edition, ...article }, ...m }) => ({ ...m, article, edition }))
+  const mask = await hiddenNamesMasker();
+  const rows: EntityMentionRow[] = publicMentions(mentions)
+    .map(({ article: { edition, title, summary, ...article }, ...m }) => ({
+      ...m,
+      article: { ...article, title: mask(title), summary: mask(summary) },
+      edition,
+    }))
     .sort((a, b) => a.edition.publishedAt.getTime() - b.edition.publishedAt.getTime());
 
   // Who else appears in the same items — the start of a family/social network.
@@ -64,7 +80,9 @@ export async function getEntity(kind: EntityKind, slug: string) {
     SELECT e.name, e.slug, e.kind, COUNT(DISTINCT m2.articleId) AS n
     FROM entity_mentions m1
     JOIN entity_mentions m2 ON m2.articleId = m1.articleId AND m2.entityId <> m1.entityId
-    JOIN entities e ON e.id = m2.entityId
+    JOIN entities e ON e.id = m2.entityId AND e.hidden = FALSE
+    JOIN articles a ON a.id = m1.articleId AND a.kind NOT IN (${Prisma.join(PRIVATE_KINDS)})
+    JOIN editions ed ON ed.id = a.editionId AND ed.deletedAt IS NULL
     WHERE m1.entityId = ${entity.id}
     GROUP BY e.id, e.name, e.slug, e.kind
     ORDER BY n DESC, e.name
@@ -83,4 +101,13 @@ export async function getEntity(kind: EntityKind, slug: string) {
     roles: count(rows.map((r) => r.role?.toLowerCase() ?? null)).slice(0, 6),
     related: related.map((r) => ({ name: r.name, slug: r.slug, kind: r.kind as EntityKind, n: Number(r.n) })),
   };
+}
+
+/** Masks every hidden entity's name and printed spellings ("[nome ocultado]"). */
+async function hiddenNamesMasker() {
+  const hidden = await prisma.entity.findMany({
+    where: { hidden: true },
+    select: { name: true, mentions: { select: { surface: true }, distinct: ["surface"] } },
+  });
+  return nameMasker(hidden.flatMap((e) => [e.name, ...e.mentions.map((m) => m.surface)]));
 }

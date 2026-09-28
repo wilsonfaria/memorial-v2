@@ -14,3 +14,17 @@ export const KIND_LABEL: Record<ArticleKind, string> = {
   festa: "Festa", anuncio: "Anúncio", edital: "Edital", cronica: "Crônica", poesia: "Poesia",
   expediente: "Expediente", outro: "Outro",
 };
+
+/**
+ * Sensitive kinds (health, police, religion, politics — LGPD art. 11 data):
+ * the mentions are kept, but these items never reach the public pages of a
+ * person or place — not in the timeline, "aparece junto com", nor the counts.
+ * The newspaper itself (PDF, transcription, search) is untouched.
+ */
+export const PRIVATE_KINDS = ["doenca", "policia", "religiao", "politica"] as const satisfies readonly ArticleKind[];
+
+export const isPrivateKind = (kind: string) => (PRIVATE_KINDS as readonly string[]).includes(kind);
+
+/** Mentions that may appear on a public page (their item isn't of a sensitive kind). */
+export const publicMentions = <T extends { article: { kind: string } }>(rows: T[]) =>
+  rows.filter((r) => !isPrivateKind(r.article.kind));
