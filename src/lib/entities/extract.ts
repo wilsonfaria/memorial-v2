@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reflowText } from "@/lib/ocr-revision/reflow";
-import { DailyQuotaError, generateJson } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, generateJson, noRealError } from "@/lib/ocr-revision/gemini";
 import { displayName, entityKey, isUsableName, slugFromKey, splitHonorific } from "@/lib/entities/normalize";
 import { ARTICLE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
 
@@ -40,7 +40,8 @@ const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice
 
 /** Validates the model's JSON leniently: drops what doesn't fit instead of failing the page. */
 export function parseExtraction(json: unknown): ParsedArticle[] {
-  const list = (json as { materias?: unknown })?.materias;
+  // {"materias": [...]} as asked, or a bare [...] (gemini-3.1-flash-lite does that).
+  const list = Array.isArray(json) ? json : (json as { materias?: unknown })?.materias;
   if (!Array.isArray(list)) throw new Error("Resposta sem a lista 'materias'.");
   return (list as RawArticle[]).map((a) => {
     const kind = str(a.tipo, 20).toLowerCase() as ArticleKind;
@@ -200,7 +201,7 @@ export async function extractPage(editionId: number, page: number): Promise<Extr
 const pendingExtraction = {
   revisedText: { not: null },
   entitiesAt: null,
-  entitiesError: null,
+  ...noRealError("entitiesError"),
   edition: { deletedAt: null },
 };
 
@@ -212,6 +213,7 @@ export type ExtractNextResult =
   | { status: "extracted"; editionId: number; page: number; result: ExtractPageResult; remaining: number }
   | { status: "failed"; editionId: number; page: number; error: string; remaining: number }
   | { status: "quota"; remaining: number }
+  | { status: "busy"; message: string; remaining: number }
   | { status: "done"; remaining: 0 };
 
 /** Extracts the next transcribed page that hasn't been extracted yet. */
@@ -227,6 +229,9 @@ export async function extractNextPage(): Promise<ExtractNextResult> {
     return { status: "extracted", ...next, result, remaining: await countPendingExtraction() };
   } catch (err) {
     if (err instanceof DailyQuotaError) return { status: "quota", remaining: await countPendingExtraction() };
+    if (err instanceof ModelBusyError) {
+      return { status: "busy", message: err.message, remaining: await countPendingExtraction() };
+    }
     const error = (err as Error).message.slice(0, 1000);
     await prisma.editionPage.update({ where: { editionId_page: next }, data: { entitiesError: error } });
     return { status: "failed", ...next, error, remaining: await countPendingExtraction() };

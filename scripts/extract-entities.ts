@@ -11,6 +11,7 @@ async function main() {
     const r = await extractNextPage();
     if (r.status === "done") return console.log("Nada pendente.");
     if (r.status === "quota") return console.log("Cota diária esgotada — continue amanhã.");
+    if (r.status === "busy") return console.log("Google sobrecarregado — tente de novo em alguns minutos.");
     if (r.status === "failed") console.log(`✗ ${r.editionId}/${r.page}: ${r.error}`);
     else console.log(`✓ ${r.editionId}/${r.page}: ${r.result.articles} matérias, ${r.result.people} pessoas, ${r.result.places} lugares (${r.result.model}) · faltam ${r.remaining}`);
   }

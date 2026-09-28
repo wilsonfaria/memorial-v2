@@ -62,6 +62,8 @@ const IDLE_CHECK_MS = 30_000; // how often a disabled/idle worker looks again
 const DONE_RECHECK_MS = 10 * 60_000; // nothing pending: look for new uploads every 10 min
 const BACKOFF_MS = 10 * 60_000;
 const MAX_FAILS_IN_A_ROW = 3;
+/** Google "high demand" (503): wait this long, then retry the same page. */
+const BUSY_WAIT_MS = 5 * 60_000;
 
 function set(patch: Partial<WorkerState>) {
   shared.state = { ...shared.state, ...patch };
@@ -143,6 +145,12 @@ async function loop() {
           }
           continue;
         }
+        if (ex.status === "busy") {
+          note("Google sobrecarregado (extração) — aguardando 5 min, sem marcar a página.", "info");
+          set({ phase: "backoff", resumeAt: new Date(Date.now() + BUSY_WAIT_MS).toISOString() });
+          await wait(BUSY_WAIT_MS);
+          continue;
+        }
         // "done" or "quota": nothing to extract right now — go on to transcription.
       }
 
@@ -153,6 +161,12 @@ async function loop() {
         note("Nenhuma página pendente. Tudo transcrito.");
         set({ phase: "done", resumeAt: new Date(Date.now() + DONE_RECHECK_MS).toISOString() });
         await wait(DONE_RECHECK_MS);
+        continue;
+      }
+      if (r.status === "busy") {
+        note("Google sobrecarregado (transcrição) — aguardando 5 min, sem marcar a página.", "info");
+        set({ phase: "backoff", resumeAt: new Date(Date.now() + BUSY_WAIT_MS).toISOString() });
+        await wait(BUSY_WAIT_MS);
         continue;
       }
       if (r.status === "quota") {

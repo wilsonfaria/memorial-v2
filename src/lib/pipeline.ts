@@ -3,7 +3,7 @@ import { indexEdition, reindexFromDatabase } from "@/lib/search/indexer";
 import { isMeiliConfigured, meiliFetch, MEILI_INDEX } from "@/lib/search/meili";
 import { revisePage } from "@/lib/ocr-revision/revise";
 import { clearPageExtraction } from "@/lib/entities/extract";
-import { DailyQuotaError, isGeminiConfigured } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, isGeminiConfigured, noRealError } from "@/lib/ocr-revision/gemini";
 
 /**
  * Per-edition processing pipeline, driven one short step at a time from the
@@ -112,24 +112,27 @@ export async function runPipelineStep(editionId: number, stage: PipelineStage): 
     }
 
     if (!isGeminiConfigured()) return { ok: false, stage, detail: "GEMINI_API_KEY não configurada" };
+    const pending = { editionId, revisedAt: null, ...noRealError("revisionError") };
     const next = await prisma.editionPage.findFirst({
-      where: { editionId, revisedAt: null, revisionError: null },
+      where: pending,
       orderBy: { page: "asc" },
       select: { page: true },
     });
     if (!next) return { ok: true, stage, done: true, detail: "todas as páginas já revisadas" };
     try {
       const r = await revisePage(editionId, next.page);
-      const left = await prisma.editionPage.count({ where: { editionId, revisedAt: null, revisionError: null } });
+      const left = await prisma.editionPage.count({ where: pending });
       return { ok: true, stage, done: left === 0, detail: `pág. ${r.page} revisada (${r.chars} caracteres)` };
     } catch (err) {
       if (err instanceof DailyQuotaError) return { ok: false, stage, detail: err.message, quota: true };
+      // Overloaded: stop this edition without marking the page; run it again later.
+      if (err instanceof ModelBusyError) return { ok: false, stage, detail: err.message };
       const message = (err as Error).message.slice(0, 1000);
       await prisma.editionPage.update({
         where: { editionId_page: { editionId, page: next.page } },
         data: { revisionError: message },
       });
-      const left = await prisma.editionPage.count({ where: { editionId, revisedAt: null, revisionError: null } });
+      const left = await prisma.editionPage.count({ where: pending });
       // A failed page is marked and skipped; the edition goes on with the rest.
       return { ok: true, stage, done: left === 0, detail: `pág. ${next.page} falhou: ${message.slice(0, 160)}` };
     }

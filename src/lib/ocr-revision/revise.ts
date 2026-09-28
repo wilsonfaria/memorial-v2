@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { absolutePdfPath } from "@/lib/storage";
 import { renderPdfPageTilesToJpeg } from "@/lib/pdf-render";
 import { reindexFromDatabase } from "@/lib/search/indexer";
-import { DailyQuotaError, transcribeImage } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, noRealError, transcribeImage } from "@/lib/ocr-revision/gemini";
 import { reflowText } from "@/lib/ocr-revision/reflow";
 import { clearPageExtraction } from "@/lib/entities/extract";
 
@@ -80,11 +80,12 @@ export type ReviseNextResult =
   | { status: "revised"; result: RevisePageResult; remaining: number }
   | { status: "failed"; editionId: number; page: number; error: string; remaining: number }
   | { status: "quota"; message: string; remaining: number }
+  | { status: "busy"; message: string; remaining: number }
   | { status: "done"; remaining: 0 };
 
 const pendingWhere = (retryFailed: boolean) => ({
   revisedAt: null,
-  ...(retryFailed ? {} : { revisionError: null }),
+  ...(retryFailed ? {} : noRealError("revisionError")),
   edition: { deletedAt: null },
 });
 
@@ -108,6 +109,10 @@ export async function reviseNextPage({ retryFailed = false } = {}): Promise<Revi
   } catch (err) {
     if (err instanceof DailyQuotaError) {
       return { status: "quota", message: err.message, remaining: await remainingAfter() };
+    }
+    if (err instanceof ModelBusyError) {
+      // Google overloaded: leave the page pending, the caller waits and retries.
+      return { status: "busy", message: err.message, remaining: await remainingAfter() };
     }
     const error = (err as Error).message.slice(0, 1000);
     await prisma.editionPage.update({

@@ -103,6 +103,33 @@ export function availableModels(): string[] {
 
 class ModelDailyQuota extends Error {}
 
+/**
+ * Google is overloaded or unreachable ("high demand", 500/503, network) —
+ * nothing wrong with the page. Callers try another model, then wait and retry
+ * later, and never mark the page as failed for it.
+ */
+export class ModelBusyError extends Error {
+  constructor(detail = "") {
+    super(`Gemini sobrecarregado no momento${detail ? ` (${detail})` : ""}. Tentando de novo mais tarde.`);
+    this.name = "ModelBusyError";
+  }
+}
+
+/** Errors saved before ModelBusyError existed that were really just overload. */
+export const TRANSIENT_ERROR = /HTTP 50[03]|high demand|overloaded|fetch failed|timeout|ECONNRESET|EAI_AGAIN/i;
+
+/**
+ * Prisma filter for "no error yet, or only an overload error" on a text
+ * column — so pages marked failed by a mere 503 go back into the queue.
+ */
+export function noRealError(field: "revisionError" | "entitiesError") {
+  const transient = ["HTTP 503", "HTTP 500", "high demand", "fetch failed", "sobrecarregado"];
+  return { OR: [{ [field]: null }, ...transient.map((t) => ({ [field]: { contains: t } }))] };
+}
+
+/** Overload retries on the same model before moving on to the next one. */
+const BUSY_ATTEMPTS = 3;
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -138,11 +165,11 @@ async function callModel(
         signal: AbortSignal.timeout(120_000),
       });
     } catch (err) {
-      if (attempt < MAX_ATTEMPTS) {
+      if (attempt < BUSY_ATTEMPTS) {
         await sleep(5000 * attempt);
         continue;
       }
-      throw err;
+      throw new ModelBusyError(`${model}: ${(err as Error).message.slice(0, 80)}`);
     }
 
     if (res.ok) {
@@ -164,9 +191,12 @@ async function callModel(
       }
       throw new ModelDailyQuota(model); // persistent throttling: rest this model for today
     }
-    if ((res.status === 500 || res.status === 503) && attempt < MAX_ATTEMPTS) {
-      await sleep(5000 * attempt);
-      continue;
+    if (res.status === 500 || res.status === 503) {
+      if (attempt < BUSY_ATTEMPTS) {
+        await sleep(5000 * attempt);
+        continue;
+      }
+      throw new ModelBusyError(`${model} HTTP ${res.status}`);
     }
     throw new Error(`Gemini (${model}) HTTP ${res.status}: ${text.slice(0, 300)}`);
   }
@@ -182,6 +212,7 @@ export async function transcribeImage(jpeg: Buffer, instructions: string): Promi
     { type: "text", text: instructions },
     { type: "image_url", image_url: { url: `data:image/jpeg;base64,${jpeg.toString("base64")}` } },
   ];
+  let busy: ModelBusyError | null = null;
   for (const model of availableModels()) {
     try {
       return { text: await callModel(model, content), model };
@@ -190,10 +221,14 @@ export async function transcribeImage(jpeg: Buffer, instructions: string): Promi
         exhausted.set(model, quotaDay());
         continue;
       }
+      if (err instanceof ModelBusyError) {
+        busy = err; // overloaded: try the next model
+        continue;
+      }
       throw err;
     }
   }
-  throw new DailyQuotaError(GEMINI_MODELS.join(", "));
+  throw busy ?? new DailyQuotaError(GEMINI_MODELS.join(", "));
 }
 
 /**
@@ -213,6 +248,7 @@ export function availableExtractModels(): string[] {
 
 /** Text prompt → JSON answer, rotating through GEMINI_EXTRACT_MODELS like transcribeImage. */
 export async function generateJson(prompt: string): Promise<{ json: unknown; model: string }> {
+  let busy: ModelBusyError | null = null;
   for (const model of availableExtractModels()) {
     try {
       const raw = await callModel(model, [{ type: "text", text: prompt }], {
@@ -220,9 +256,11 @@ export async function generateJson(prompt: string): Promise<{ json: unknown; mod
         temperature: 0.1,
         maxTokens: 32768, // a busy page lists dozens of items and names
       });
-      const body = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+      // Some models answer with a bare array instead of the requested object.
+      const start = raw.search(/[[{]/);
+      const end = Math.max(raw.lastIndexOf("}"), raw.lastIndexOf("]"));
       try {
-        return { json: JSON.parse(body), model };
+        return { json: JSON.parse(raw.slice(start, end + 1)), model };
       } catch {
         throw new Error(`Resposta do ${model} não é JSON válido: ${raw.slice(0, 200)}`);
       }
@@ -231,8 +269,12 @@ export async function generateJson(prompt: string): Promise<{ json: unknown; mod
         exhausted.set(model, quotaDay());
         continue;
       }
+      if (err instanceof ModelBusyError) {
+        busy = err;
+        continue;
+      }
       throw err;
     }
   }
-  throw new DailyQuotaError(GEMINI_EXTRACT_MODELS.join(", "));
+  throw busy ?? new DailyQuotaError(GEMINI_EXTRACT_MODELS.join(", "));
 }
