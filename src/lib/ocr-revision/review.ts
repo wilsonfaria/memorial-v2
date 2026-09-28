@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { reindexFromDatabase } from "@/lib/search/indexer";
 import { scoreTranscription } from "@/lib/ocr-revision/quality";
+import { clearPageExtraction } from "@/lib/entities/extract";
 
 /**
  * Human review of AI transcriptions: edit, verify, browse history, restore.
@@ -38,7 +39,10 @@ export async function saveHumanEdit(editionId: number, page: number, text: strin
       ? [prisma.pageTextVersion.create({ data: { editionId, page, text: clean, source: "human", author } })]
       : []),
   ]);
-  if (changed) await reindexFromDatabase([editionId]);
+  if (changed) {
+    await clearPageExtraction(editionId, [page]); // corrected text → extract again
+    await reindexFromDatabase([editionId]);
+  }
   return { changed };
 }
 

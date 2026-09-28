@@ -5,6 +5,7 @@ import { renderPdfPageTilesToJpeg } from "@/lib/pdf-render";
 import { reindexFromDatabase } from "@/lib/search/indexer";
 import { DailyQuotaError, transcribeImage } from "@/lib/ocr-revision/gemini";
 import { reflowText } from "@/lib/ocr-revision/reflow";
+import { clearPageExtraction } from "@/lib/entities/extract";
 
 /**
  * AI transcription of newspaper pages from their images. Each page is
@@ -70,6 +71,7 @@ export async function revisePage(editionId: number, page: number): Promise<Revis
     }),
     prisma.pageTextVersion.create({ data: { editionId, page, text: revisedText, source: "ai", model: revisedModel } }),
   ]);
+  await clearPageExtraction(editionId, [page]); // new text → extract people/places again
   await reindexFromDatabase([editionId]);
   return { editionId, page, chars: revisedText.length, bands: tiles.length };
 }

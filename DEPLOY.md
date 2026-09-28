@@ -89,6 +89,17 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
    entre páginas; quando a cota do dia acaba, dorme até o Google renovar
    (meia-noite do Pacífico) e continua. `AI_WORKER=off` desativa o recurso.
 
+6. **Revisão humana e qualidade:** em cada edição (ícone de livro), **Conferir**
+   marca o texto como certo e **Corrigir** abre a página digitalizada ao lado
+   do texto; tudo fica no histórico e pode ser restaurado. **Edições →
+   Qualidade da IA** mede o erro (CER/WER) de cada modelo nas páginas
+   conferidas.
+7. **Pessoas e lugares:** de cada página transcrita a IA extrai as matérias
+   (tipo + resumo), as pessoas e os lugares (`GEMINI_EXTRACT_MODELS`, padrão
+   `gemini-3.5-flash-lite,gemini-3.1-flash-lite`, 1 pedido por página). O
+   site ganha `/pessoas` e `/lugares` — acrescente-os ao menu em **Menus**.
+   `npx tsx scripts/extract-entities.ts` extrai pelo terminal.
+
 `scripts/ocr-pilot.ts` compara modelos (NVIDIA, Gemini, Groq) em algumas páginas
 e gera um relatório lado a lado — útil antes de trocar de modelo.
 

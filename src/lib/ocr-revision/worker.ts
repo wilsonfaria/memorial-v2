@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { availableModels, isGeminiConfigured, msUntilQuotaReset } from "@/lib/ocr-revision/gemini";
+import { availableExtractModels, availableModels, isGeminiConfigured, msUntilQuotaReset } from "@/lib/ocr-revision/gemini";
 import { reviseNextPage } from "@/lib/ocr-revision/revise";
+import { extractNextPage } from "@/lib/entities/extract";
 
 /**
- * Background AI transcription: works through every pending page on its own,
+ * Background AI work: first extracts people/places/articles from pages that
+ * are already transcribed (1 cheap request each), then transcribes the next
+ * pending page — every pending page, on its own,
  * inside the server process (started from src/instrumentation.ts), so the
  * archive keeps advancing with no browser open. Switched on/off and paced
  * from the admin (site_settings.aiWorkerEnabled / aiWorkerIntervalSec).
@@ -27,8 +30,9 @@ export type WorkerPhase =
 
 export type WorkerState = {
   phase: WorkerPhase;
-  /** Pages transcribed / failed since the server started. */
+  /** Pages transcribed / extracted / failed since the server started. */
   revised: number;
+  extracted: number;
   failed: number;
   last: { text: string; at: string; kind: "ok" | "err" | "info" } | null;
   /** ISO time the worker will resume (quota / backoff / done). */
@@ -42,7 +46,7 @@ type Shared = { started: boolean; wake: () => void; state: WorkerState };
 const shared: Shared = ((globalThis as { __memorialAiWorker?: Shared }).__memorialAiWorker ??= {
   started: false,
   wake: () => {},
-  state: { phase: "off", revised: 0, failed: 0, last: null, resumeAt: null },
+  state: { phase: "off", revised: 0, extracted: 0, failed: 0, last: null, resumeAt: null },
 });
 
 export function getWorkerState(): WorkerState {
@@ -118,6 +122,31 @@ async function loop() {
       }
 
       set({ phase: "working", resumeAt: null });
+
+      // 1) Structured extraction of already-transcribed pages (keeps up with the transcription).
+      if (availableExtractModels().length > 0) {
+        const ex = await extractNextPage();
+        if (ex.status === "extracted" || ex.status === "failed") {
+          const name = await editionName(ex.editionId);
+          if (ex.status === "extracted") {
+            failsInARow = 0;
+            set({ extracted: (shared.state.extracted ?? 0) + 1 });
+            note(`${name} · pág. ${ex.page}: ${ex.result.articles} matérias, ${ex.result.people} pessoas, ${ex.result.places} lugares extraídos`, "ok");
+          } else {
+            failsInARow++;
+            set({ failed: shared.state.failed + 1 });
+            note(`${name} · pág. ${ex.page}: extração falhou: ${ex.error.slice(0, 160)}`, "err");
+          }
+          if (intervalSec > 0) {
+            set({ phase: "pausing", resumeAt: new Date(Date.now() + intervalSec * 1000).toISOString() });
+            await wait(intervalSec * 1000);
+          }
+          continue;
+        }
+        // "done" or "quota": nothing to extract right now — go on to transcription.
+      }
+
+      // 2) Transcription of the next pending page.
       const r = await reviseNextPage();
 
       if (r.status === "done") {

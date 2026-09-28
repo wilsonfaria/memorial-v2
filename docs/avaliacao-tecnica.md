@@ -45,3 +45,21 @@ A base está bem feita e a decisão mais importante — IA lendo a imagem com
 fidelidade à época — foi acertada. Mas até aqui o projeto **digitalizou melhor
 o que já existia**; a inovação de fato seria transformar décadas de jornal numa
 base consultável sobre **pessoas e fatos** da cidade.
+
+## Progresso desde a avaliação
+
+**28/09/2026 — Fases 1 e 2 (protótipo)**
+
+- *Método / Engenharia:* revisão humana com histórico de versões; páginas
+  conferidas formam o gabarito e a tela **Qualidade da IA** calcula CER/WER por
+  modelo sem novas chamadas à API; testes automatizados (`npm test`, 21
+  casos: texto corrido, distância de edição/CER, Range HTTP, normalização de
+  nomes). O agente passou a verificar o admin com um usuário de teste local.
+- *Inovação de produto:* extração estruturada (matérias com tipo e resumo,
+  pessoas com tratamento e papel, lugares) e páginas públicas `/pessoas` e
+  `/lugares` com linha do tempo das menções, grafias alternativas e "aparece
+  junto com". Nomes reunidos por grafia (Piumhy/Piumhi, Josè/José).
+- *Limites conhecidos:* Gemma (cota grande) não serviu como extrator — a
+  extração usa a cota do Flash Lite (~20% a mais por página); nomes
+  incompletos ("cap. Motta") ficam separados até haver revisão humana de
+  identidades; tudo depende do avanço da transcrição.

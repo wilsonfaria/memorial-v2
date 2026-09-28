@@ -109,23 +109,22 @@ function sleep(ms: number) {
 
 const MAX_ATTEMPTS = 5;
 
-async function callModel(model: string, jpeg: Buffer, instructions: string): Promise<string> {
+type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+
+async function callModel(
+  model: string,
+  content: ContentPart[],
+  { json = false, temperature = 0.2, maxTokens = 8192 }: { json?: boolean; temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
   const body = JSON.stringify({
     model,
-    max_tokens: 8192,
-    temperature: 0.2,
+    max_tokens: maxTokens,
+    temperature,
     // Gemini 3 thinking can't be turned off, only lowered; Gemma models
     // reject the parameter altogether.
     ...(model.startsWith("gemini") ? { reasoning_effort: "low" } : {}),
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: instructions },
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${jpeg.toString("base64")}` } },
-        ],
-      },
-    ],
+    ...(json ? { response_format: { type: "json_object" } } : {}),
+    messages: [{ role: "user", content }],
   });
 
   for (let attempt = 1; ; attempt++) {
@@ -179,9 +178,13 @@ async function callModel(model: string, jpeg: Buffer, instructions: string): Pro
  * only when every model in GEMINI_MODELS is exhausted.
  */
 export async function transcribeImage(jpeg: Buffer, instructions: string): Promise<{ text: string; model: string }> {
+  const content: ContentPart[] = [
+    { type: "text", text: instructions },
+    { type: "image_url", image_url: { url: `data:image/jpeg;base64,${jpeg.toString("base64")}` } },
+  ];
   for (const model of availableModels()) {
     try {
-      return { text: await callModel(model, jpeg, instructions), model };
+      return { text: await callModel(model, content), model };
     } catch (err) {
       if (err instanceof ModelDailyQuota) {
         exhausted.set(model, quotaDay());
@@ -191,4 +194,45 @@ export async function transcribeImage(jpeg: Buffer, instructions: string): Promi
     }
   }
   throw new DailyQuotaError(GEMINI_MODELS.join(", "));
+}
+
+/**
+ * Models for text-only structured extraction (src/lib/entities): the cheap
+ * Flash Lite ones, one request per page. Gemma was tried (bigger quota) but
+ * took minutes per page or failed with internal errors.
+ */
+export const GEMINI_EXTRACT_MODELS = (process.env.GEMINI_EXTRACT_MODELS ?? "gemini-3.5-flash-lite,gemini-3.1-flash-lite")
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
+
+export function availableExtractModels(): string[] {
+  const today = quotaDay();
+  return GEMINI_EXTRACT_MODELS.filter((m) => exhausted.get(m) !== today);
+}
+
+/** Text prompt → JSON answer, rotating through GEMINI_EXTRACT_MODELS like transcribeImage. */
+export async function generateJson(prompt: string): Promise<{ json: unknown; model: string }> {
+  for (const model of availableExtractModels()) {
+    try {
+      const raw = await callModel(model, [{ type: "text", text: prompt }], {
+        json: true,
+        temperature: 0.1,
+        maxTokens: 32768, // a busy page lists dozens of items and names
+      });
+      const body = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+      try {
+        return { json: JSON.parse(body), model };
+      } catch {
+        throw new Error(`Resposta do ${model} não é JSON válido: ${raw.slice(0, 200)}`);
+      }
+    } catch (err) {
+      if (err instanceof ModelDailyQuota) {
+        exhausted.set(model, quotaDay());
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new DailyQuotaError(GEMINI_EXTRACT_MODELS.join(", "));
 }

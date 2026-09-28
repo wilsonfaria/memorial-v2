@@ -423,6 +423,10 @@ model EditionPage {
   /// "redo AI" never overwrites them.
   verifiedAt DateTime?
   verifiedBy String?
+  /// Structured extraction (articles, people, places) done from revisedText;
+  /// cleared whenever the text changes so it is redone.
+  entitiesAt    DateTime?
+  entitiesError String?  @db.Text
   updatedAt DateTime @updatedAt
 
   @@id([editionId, page])
@@ -479,6 +483,7 @@ model Edition {
   /// (see src/lib/search). Filled on upload and by the admin "Indexar busca".
   pages  EditionPage[]
   textVersions PageTextVersion[]
+  articles     Article[]
 
   @@index([publishedAt])
   @@map("editions")
@@ -535,4 +540,67 @@ model AnalyticsEvent {
   @@index([type, createdAt])
   @@index([editionId])
   @@map("analytics_events")
+}
+
+/// One newspaper item (news, note, ad…) found on a page by the structured
+/// extraction (src/lib/entities). Recreated whenever the page text changes.
+model Article {
+  id        Int      @id @default(autoincrement())
+  editionId Int
+  edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  page      Int
+  /// Order on the page (0-based)
+  position  Int
+  title     String   @db.VarChar(500)
+  /// nascimento, casamento, obito, viagem, anuncio, noticia… (see ARTICLE_KINDS)
+  kind      String   @db.VarChar(20)
+  /// One sentence in modern Portuguese, written by the model
+  summary   String   @db.Text
+  model     String?
+  createdAt DateTime @default(now())
+
+  mentions EntityMention[]
+
+  @@index([editionId, page])
+  @@index([kind])
+  @@map("articles")
+}
+
+/// A person or place, grouped across the archive by a spelling-folded key
+/// ("Piumhy" = "Piumhi", "José Motta" = "José Mota").
+model Entity {
+  id           Int       @id @default(autoincrement())
+  /// "person" | "place"
+  kind         String    @db.VarChar(10)
+  name         String    @db.VarChar(255)
+  key          String    @db.VarChar(255)
+  slug         String    @db.VarChar(255)
+  mentionCount Int       @default(0)
+  firstDate    DateTime?
+  lastDate     DateTime?
+
+  mentions EntityMention[]
+
+  @@unique([kind, key])
+  @@unique([kind, slug])
+  @@index([kind, mentionCount])
+  @@map("entities")
+}
+
+model EntityMention {
+  id        Int     @id @default(autoincrement())
+  articleId Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  entityId  Int
+  entity    Entity  @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  /// As printed ("José Motta")
+  surface   String  @db.VarChar(255)
+  /// "sr.", "d.", "dr.", "cap."…
+  honorific String? @db.VarChar(30)
+  /// Short role in the item: "noiva", "falecido", "aniversariante"…
+  role      String? @db.VarChar(100)
+
+  @@index([entityId])
+  @@index([articleId])
+  @@map("entity_mentions")
 }

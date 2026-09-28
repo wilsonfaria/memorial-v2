@@ -1,0 +1,86 @@
+import { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import { entityKey } from "@/lib/entities/normalize";
+
+/** Public reads for the people/places pages (/pessoas, /lugares). */
+
+export type EntityKind = "person" | "place";
+const PAGE_SIZE = 60;
+
+export async function listEntities(kind: EntityKind, q: string | undefined, page: number) {
+  // Search on the folded key, so "Piumhy" finds "Piumhi" and "Motta" finds "Mota".
+  const folded = q?.trim() ? entityKey(q, kind) : "";
+  const where: Prisma.EntityWhereInput = { kind, mentionCount: { gt: 0 }, ...(folded ? { key: { contains: folded } } : {}) };
+  const [total, items] = await Promise.all([
+    prisma.entity.count({ where }),
+    prisma.entity.findMany({
+      where,
+      orderBy: [{ mentionCount: "desc" }, { name: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      select: { id: true, name: true, slug: true, mentionCount: true, firstDate: true, lastDate: true },
+    }),
+  ]);
+  return { total, items, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+}
+
+export type EntityMentionRow = {
+  id: number;
+  surface: string;
+  honorific: string | null;
+  role: string | null;
+  article: { title: string; kind: string; summary: string; page: number };
+  edition: { id: number; title: string; editionNumber: number | null; publishedAt: Date };
+};
+
+export async function getEntity(kind: EntityKind, slug: string) {
+  const entity = await prisma.entity.findUnique({ where: { kind_slug: { kind, slug } } });
+  if (!entity || entity.mentionCount === 0) return null;
+
+  const mentions = await prisma.entityMention.findMany({
+    where: { entityId: entity.id, article: { edition: { deletedAt: null } } },
+    select: {
+      id: true,
+      surface: true,
+      honorific: true,
+      role: true,
+      article: {
+        select: {
+          title: true,
+          kind: true,
+          summary: true,
+          page: true,
+          edition: { select: { id: true, title: true, editionNumber: true, publishedAt: true } },
+        },
+      },
+    },
+  });
+  const rows: EntityMentionRow[] = mentions
+    .map(({ article: { edition, ...article }, ...m }) => ({ ...m, article, edition }))
+    .sort((a, b) => a.edition.publishedAt.getTime() - b.edition.publishedAt.getTime());
+
+  // Who else appears in the same items — the start of a family/social network.
+  const related = await prisma.$queryRaw<{ name: string; slug: string; kind: string; n: bigint }[]>`
+    SELECT e.name, e.slug, e.kind, COUNT(DISTINCT m2.articleId) AS n
+    FROM entity_mentions m1
+    JOIN entity_mentions m2 ON m2.articleId = m1.articleId AND m2.entityId <> m1.entityId
+    JOIN entities e ON e.id = m2.entityId
+    WHERE m1.entityId = ${entity.id}
+    GROUP BY e.id, e.name, e.slug, e.kind
+    ORDER BY n DESC, e.name
+    LIMIT 30`;
+
+  // Most frequent honorific and roles, for the header ("cap.", "aniversariante"…).
+  const count = (values: (string | null)[]) =>
+    [...values.filter(Boolean).reduce((m, v) => m.set(v!, (m.get(v!) ?? 0) + 1), new Map<string, number>())]
+      .sort((a, b) => b[1] - a[1])
+      .map(([v]) => v);
+
+  return {
+    entity,
+    mentions: rows,
+    honorifics: count(rows.map((r) => r.honorific?.toLowerCase() ?? null)).slice(0, 3),
+    roles: count(rows.map((r) => r.role?.toLowerCase() ?? null)).slice(0, 6),
+    related: related.map((r) => ({ name: r.name, slug: r.slug, kind: r.kind as EntityKind, n: Number(r.n) })),
+  };
+}

@@ -76,7 +76,7 @@ export default function AiWorkerPanel() {
     );
   }
 
-  const { enabled, intervalSec, state, stats } = status;
+  const { enabled, intervalSec, state, stats, entities } = status;
   const phase = phaseText(enabled ? state.phase : "off", state.resumeAt);
   const pct = stats.total ? Math.round((stats.revised / stats.total) * 100) : 0;
 
@@ -88,7 +88,8 @@ export default function AiWorkerPanel() {
           <div>
             <h2 className="text-sm font-semibold text-slate-700">Transcrição automática (IA)</h2>
             <p className="mt-0.5 max-w-prose text-xs text-slate-500">
-              Transcreve sozinha todas as páginas pendentes, no servidor — pode fechar o navegador. Respeita o plano
+              Transcreve sozinha todas as páginas pendentes e, de cada página transcrita, extrai as matérias, pessoas e
+              lugares (1 pedido a mais por página) — no servidor, pode fechar o navegador. Respeita o plano
               gratuito: cada modelo fica abaixo do seu limite por minuto (Flash Lite 15, Flash 5), mais a pausa
               escolhida entre páginas. Quando a cota
               do dia acaba, espera o Google renovar (por volta das 4h–5h) e continua de onde parou.
@@ -133,15 +134,22 @@ export default function AiWorkerPanel() {
           {stats.revised} de {stats.total} páginas transcritas ({pct}%) · {stats.pending} pendentes
           {stats.failed > 0 && <span className="text-red-600"> · {stats.failed} com erro</span>}
         </span>
-        {(state.revised > 0 || state.failed > 0) && (
+        {(state.revised > 0 || state.extracted > 0 || state.failed > 0) && (
           <span>
-            desde o último deploy: {state.revised} transcritas{state.failed > 0 ? ` · ${state.failed} falhas` : ""}
+            desde o último deploy: {state.revised} transcritas · {state.extracted ?? 0} extraídas
+            {state.failed > 0 ? ` · ${state.failed} falhas` : ""}
           </span>
         )}
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-200">
         <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
+
+      <p className="mt-1.5 text-[11px] text-slate-500">
+        Dados extraídos: <strong className="text-slate-700">{entities.people}</strong> pessoas ·{" "}
+        <strong className="text-slate-700">{entities.places}</strong> lugares
+        {entities.extractPending > 0 && ` · ${entities.extractPending} página(s) transcrita(s) aguardando extração`}
+      </p>
 
       {state.last && (
         <p

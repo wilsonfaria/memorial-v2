@@ -15,6 +15,7 @@ import {
 } from "@/lib/pipeline";
 import { getWorkerState, wakeWorker } from "@/lib/ocr-revision/worker";
 import { getRevisionStats } from "@/lib/ocr-revision/revise";
+import { countPendingExtraction } from "@/lib/entities/extract";
 
 async function requireSession() {
   const session = await getSession();
@@ -73,15 +74,19 @@ export async function pipelineDoneAction() {
 /** Background AI transcription: settings, live state and page counts for the admin panel. */
 export async function aiWorkerStatusAction() {
   await requireSession();
-  const [settings, stats] = await Promise.all([
+  const [settings, stats, extractPending, people, places] = await Promise.all([
     prisma.siteSetting.findUnique({ where: { id: 1 }, select: { aiWorkerEnabled: true, aiWorkerIntervalSec: true } }),
     getRevisionStats(),
+    countPendingExtraction(),
+    prisma.entity.count({ where: { kind: "person" } }),
+    prisma.entity.count({ where: { kind: "place" } }),
   ]);
   return {
     enabled: settings?.aiWorkerEnabled ?? false,
     intervalSec: settings?.aiWorkerIntervalSec ?? 20,
     state: getWorkerState(),
     stats,
+    entities: { extractPending, people, places },
   };
 }
 

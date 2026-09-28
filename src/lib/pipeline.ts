@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { indexEdition, reindexFromDatabase } from "@/lib/search/indexer";
 import { isMeiliConfigured, meiliFetch, MEILI_INDEX } from "@/lib/search/meili";
 import { revisePage } from "@/lib/ocr-revision/revise";
+import { clearPageExtraction } from "@/lib/entities/extract";
 import { DailyQuotaError, isGeminiConfigured } from "@/lib/ocr-revision/gemini";
 
 /**
@@ -142,6 +143,10 @@ export async function runPipelineStep(editionId: number, stage: PipelineStage): 
  * page. Pages a person verified are left alone — their text is the reference.
  */
 export async function resetRevision(editionId: number, onlyFailed = false): Promise<number> {
+  if (!onlyFailed) {
+    const pages = await prisma.editionPage.findMany({ where: { editionId, verifiedAt: null }, select: { page: true } });
+    await clearPageExtraction(editionId, pages.map((p) => p.page));
+  }
   const r = await prisma.editionPage.updateMany({
     where: { editionId, verifiedAt: null, ...(onlyFailed ? { revisionError: { not: null } } : {}) },
     data: onlyFailed
