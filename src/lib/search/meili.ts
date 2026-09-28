@@ -14,7 +14,10 @@ export type MeiliPageDoc = {
   id: string; // `${editionId}-${page}`
   editionId: number;
   page: number;
+  /** AI-revised transcription when available, else the original OCR text */
   text: string;
+  /** Original OCR text, only when `text` is the revised one — keeps it searchable for recall */
+  ocrText?: string;
   title: string;
   editionNumber: number | null;
   date: string; // YYYY-MM-DD
@@ -26,12 +29,12 @@ export type MeiliPageDoc = {
 };
 
 const SETTINGS = {
-  searchableAttributes: ["text", "title", "editionNumber"],
+  searchableAttributes: ["text", "ocrText", "title", "editionNumber"],
   filterableAttributes: ["editionId", "decade", "year", "month", "day"],
   sortableAttributes: ["timestamp"],
   distinctAttribute: "editionId",
   displayedAttributes: ["id", "editionId", "page", "text"],
-  localizedAttributes: [{ attributePatterns: ["text", "title"], locales: ["por"] }],
+  localizedAttributes: [{ attributePatterns: ["text", "ocrText", "title"], locales: ["por"] }],
   pagination: { maxTotalHits: 5000 },
 };
 

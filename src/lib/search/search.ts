@@ -55,7 +55,12 @@ async function searchMeili(q: string, f: TextSearchFilters, page: number, pageSi
 }
 
 async function searchMariaDb(q: string, f: TextSearchFilters, page: number, pageSize: number): Promise<TextSearchResult> {
-  const conditions = [Prisma.sql`e.deletedAt IS NULL`, Prisma.sql`MATCH(p.text) AGAINST (${q} IN NATURAL LANGUAGE MODE)`];
+  // Both columns: the FULLTEXT index covers (text, revisedText), and MATCH
+  // must name exactly the indexed column list.
+  const conditions = [
+    Prisma.sql`e.deletedAt IS NULL`,
+    Prisma.sql`MATCH(p.text, p.revisedText) AGAINST (${q} IN NATURAL LANGUAGE MODE)`,
+  ];
   if (f.decade != null) conditions.push(Prisma.sql`d.startYear = ${f.decade}`);
   if (f.year != null) conditions.push(Prisma.sql`y.year = ${f.year}`);
   if (f.month != null) conditions.push(Prisma.sql`m.month = ${f.month}`);
@@ -71,9 +76,9 @@ async function searchMariaDb(q: string, f: TextSearchFilters, page: number, page
   const [rows, countRows] = await Promise.all([
     prisma.$queryRaw<{ editionId: number; page: number; text: string }[]>`
       SELECT editionId, page, text FROM (
-        SELECT p.editionId, p.page, p.text, e.publishedAt,
-          MATCH(p.text) AGAINST (${q} IN NATURAL LANGUAGE MODE) AS score,
-          ROW_NUMBER() OVER (PARTITION BY p.editionId ORDER BY MATCH(p.text) AGAINST (${q} IN NATURAL LANGUAGE MODE) DESC, p.page) AS rn
+        SELECT p.editionId, p.page, COALESCE(p.revisedText, p.text) AS text, e.publishedAt,
+          MATCH(p.text, p.revisedText) AGAINST (${q} IN NATURAL LANGUAGE MODE) AS score,
+          ROW_NUMBER() OVER (PARTITION BY p.editionId ORDER BY MATCH(p.text, p.revisedText) AGAINST (${q} IN NATURAL LANGUAGE MODE) DESC, p.page) AS rn
         ${from}
         WHERE ${where}
       ) ranked

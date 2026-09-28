@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
@@ -26,6 +26,21 @@ const KEN_BURNS_PANS: [string, string][] = [
   ["2%", "-1.5%"],
 ];
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+/** The OS "reduce motion" setting, live; false during SSR. */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(REDUCED_MOTION_QUERY);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false
+  );
+}
+
 /**
  * Crossfading hero carousel. All slides are stacked in the same place (the
  * text blocks share one grid cell, so the hero is as tall as the tallest
@@ -37,18 +52,10 @@ export default function HeroCarousel({ slides, aside }: { slides: HeroSlideData[
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [hovering, setHovering] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
   const touchStartX = useRef<number | null>(null);
   const count = slides.length;
   const multiple = count > 1;
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
 
   // How many times each slide has become active — keys its <img> so the Ken
   // Burns zoom restarts on every activation.

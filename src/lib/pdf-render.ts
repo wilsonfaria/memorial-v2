@@ -44,14 +44,15 @@ class NodeCanvasFactory {
 }
 
 /**
- * Rasterizes the first page of a PDF to a JPEG buffer, for edition list
- * thumbnails. Runs once at upload time (not per-request) so listing pages
- * never need to fetch/parse a full PDF client-side just to show a preview.
+ * Renders one page (1-based) at `targetWidth` px and hands the canvas to
+ * `withCanvas`; the PDF and canvas are always released afterwards.
  */
-export async function renderPdfFirstPageToJpeg(
+async function withRenderedPage<T>(
   pdfBytes: Buffer,
-  targetWidth = 400
-): Promise<Buffer> {
+  pageNumber: number,
+  targetWidth: number,
+  withCanvas: (canvas: Canvas) => Promise<T>
+): Promise<T> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // pdfjs's Node-side font loader wants a plain filesystem path (not a
   // file:// URL — Node's native fetch() can't retrieve those) ending in a
@@ -69,7 +70,7 @@ export async function renderPdfFirstPageToJpeg(
   let canvasAndContext: NodeCanvasAndContext | null = null;
 
   try {
-    const page = await pdfDoc.getPage(1);
+    const page = await pdfDoc.getPage(pageNumber);
     const baseViewport = page.getViewport({ scale: 1 });
     const scale = targetWidth / baseViewport.width;
     const viewport = page.getViewport({ scale });
@@ -83,9 +84,44 @@ export async function renderPdfFirstPageToJpeg(
       canvasFactory,
     }).promise;
 
-    return await canvasAndContext.canvas.encode("jpeg", 82);
+    return await withCanvas(canvasAndContext.canvas);
   } finally {
     if (canvasAndContext) canvasFactory.destroy(canvasAndContext);
     await pdfDoc.destroy();
   }
+}
+
+/**
+ * Rasterizes the first page of a PDF to a JPEG buffer, for edition list
+ * thumbnails. Runs once at upload time (not per-request) so listing pages
+ * never need to fetch/parse a full PDF client-side just to show a preview.
+ */
+export async function renderPdfFirstPageToJpeg(pdfBytes: Buffer, targetWidth = 400): Promise<Buffer> {
+  return withRenderedPage(pdfBytes, 1, targetWidth, (canvas) => canvas.encode("jpeg", 82));
+}
+
+/**
+ * Renders a page at `width` px and slices it into horizontal bands no taller
+ * than `maxTileHeight`, overlapping by `overlap` px so no text line is lost at
+ * a cut. For vision models with a per-image size cap: a whole newspaper page
+ * squeezed into one capped image leaves the print too small to read.
+ */
+export async function renderPdfPageTilesToJpeg(
+  pdfBytes: Buffer,
+  pageNumber: number,
+  { width = 1536, maxTileHeight = 2048, overlap = 64, quality = 85 } = {}
+): Promise<{ tiles: Buffer[]; width: number; height: number }> {
+  return withRenderedPage(pdfBytes, pageNumber, width, async (page) => {
+    const count = Math.max(1, Math.ceil((page.height - overlap) / (maxTileHeight - overlap)));
+    const step = Math.ceil((page.height - overlap) / count);
+    const tiles: Buffer[] = [];
+    for (let i = 0; i < count; i++) {
+      const y = i * step;
+      const h = Math.min(step + overlap, page.height - y);
+      const tile = createCanvas(page.width, h);
+      tile.getContext("2d").drawImage(page, 0, y, page.width, h, 0, 0, page.width, h);
+      tiles.push(await tile.encode("jpeg", quality));
+    }
+    return { tiles, width: page.width, height: page.height };
+  });
 }

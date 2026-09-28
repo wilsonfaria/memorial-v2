@@ -7,18 +7,29 @@ import EditionForm from "@/components/admin/EditionForm";
 import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
 import SearchIndexPanel from "./SearchIndexPanel";
+import PipelinePanel from "./PipelinePanel";
 import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
+import { getPipelineStatuses, getPipelineTotals } from "@/lib/pipeline";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
+/** Quick filters by pipeline stage, to pick editions by hand (?etapa=…). */
+const STAGE_FILTERS: { key: string; label: string; where: Prisma.EditionWhereInput }[] = [
+  { key: "sem-texto", label: "Sem texto", where: { pages: { none: {} } } },
+  { key: "ia-pendente", label: "IA pendente", where: { pages: { some: { revisedAt: null, revisionError: null } } } },
+  { key: "ia-erro", label: "IA com erro", where: { pages: { some: { revisedAt: null, revisionError: { not: null } } } } },
+  { key: "ia-completa", label: "IA completa", where: { pages: { some: {}, every: { revisedAt: { not: null } } } } },
+];
+
 export default async function AdminEditionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ newspaperId?: string; year?: string; month?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ newspaperId?: string; year?: string; month?: string; q?: string; page?: string; etapa?: string }>;
 }) {
   const params = await searchParams;
+  const stage = STAGE_FILTERS.find((f) => f.key === params.etapa);
   const newspaperId = params.newspaperId ? Number(params.newspaperId) : undefined;
   const year = params.year ? Number(params.year) : undefined;
   const month = params.month ? Number(params.month) : undefined;
@@ -38,8 +49,9 @@ export default async function AdminEditionsPage({
   if (q) {
     where.OR = await buildTitleOrNumberFilter(q);
   }
+  if (stage) Object.assign(where, stage.where);
 
-  const [newspapers, distinctYears, total, editions, searchStatus] = await Promise.all([
+  const [newspapers, distinctYears, total, editions, searchStatus, pipelineTotals] = await Promise.all([
     prisma.newspaper.findMany({
       orderBy: { id: "asc" },
       include: {
@@ -73,7 +85,16 @@ export default async function AdminEditionsPage({
       },
     }),
     getSearchIndexStatusAction(),
+    getPipelineTotals(),
   ]);
+  const pipeline = await getPipelineStatuses(editions.map((e) => e.id));
+
+  function stageHref(key: string | null) {
+    const sp = new URLSearchParams();
+    for (const k of ["newspaperId", "year", "month", "q"] as const) if (params[k]) sp.set(k, params[k]!);
+    if (key) sp.set("etapa", key);
+    return `/admin/edicoes${sp.toString() ? `?${sp}` : ""}`;
+  }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -84,6 +105,7 @@ export default async function AdminEditionsPage({
   if (params.year) activeParams.set("year", params.year);
   if (params.month) activeParams.set("month", params.month);
   if (params.q) activeParams.set("q", params.q);
+  if (stage) activeParams.set("etapa", stage.key);
 
   function pageHref(p: number) {
     const sp = new URLSearchParams(activeParams);
@@ -98,6 +120,8 @@ export default async function AdminEditionsPage({
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
       />
 
+      <PipelinePanel totals={pipelineTotals} />
+
       <SearchIndexPanel initialStatus={searchStatus} />
 
       <CreatePanel label="Nova edição" title="Nova edição">
@@ -106,11 +130,30 @@ export default async function AdminEditionsPage({
 
       <EditionsFilterBar newspapers={newspapers} years={distinctYears.map((y) => y.year)} />
 
+      <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="text-slate-400">Etapa:</span>
+        {[{ key: null, label: "Todas" }, ...STAGE_FILTERS].map((f) => {
+          const active = (stage?.key ?? null) === f.key;
+          return (
+            <a
+              key={f.key ?? "all"}
+              href={stageHref(f.key)}
+              className={`rounded-full px-2.5 py-1 ring-1 ${
+                active ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-600 ring-paper-200 hover:ring-brand-300"
+              }`}
+            >
+              {f.label}
+            </a>
+          );
+        })}
+      </div>
+
       <p className="mb-1 text-xs text-slate-400">
         {total === 0 ? "Nenhuma edição encontrada." : `Mostrando ${from} - ${to} de ${total} edição(ões).`}
       </p>
       <EditionsList
         editions={editions.map(({ _count, ...e }) => ({ ...e, hasExtractedText: _count.pages > 0 }))}
+        pipeline={pipeline}
       />
 
       {totalPages > 1 && (

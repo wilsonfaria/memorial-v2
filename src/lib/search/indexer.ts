@@ -29,13 +29,18 @@ type EditionForDocs = {
   month: { month: number; year: { year: number; decade: { startYear: number } } };
 };
 
-function toDocs(edition: EditionForDocs, pages: { page: number; text: string }[]): MeiliPageDoc[] {
+type PageText = { page: number; text: string; revisedText: string | null };
+
+function toDocs(edition: EditionForDocs, pages: PageText[]): MeiliPageDoc[] {
   const date = edition.publishedAt.toISOString().slice(0, 10);
   return pages.map((p) => ({
     id: `${edition.id}-${p.page}`,
     editionId: edition.id,
     page: p.page,
-    text: p.text,
+    // Prefer the AI transcription (readable snippets); the original OCR stays
+    // searchable in ocrText so nothing that matched before stops matching.
+    text: p.revisedText ?? p.text,
+    ...(p.revisedText ? { ocrText: p.text } : {}),
     title: edition.title,
     editionNumber: edition.editionNumber,
     date,
@@ -53,9 +58,9 @@ async function pushToMeili(editions: EditionForDocs[], wait = false) {
   const ids = editions.map((e) => e.id);
   const pages = await prisma.editionPage.findMany({
     where: { editionId: { in: ids } },
-    select: { editionId: true, page: true, text: true },
+    select: { editionId: true, page: true, text: true, revisedText: true },
   });
-  const byEdition = new Map<number, { page: number; text: string }[]>();
+  const byEdition = new Map<number, PageText[]>();
   for (const p of pages) byEdition.set(p.editionId, [...(byEdition.get(p.editionId) ?? []), p]);
 
   const deleteTask = await deleteEditionDocuments(ids);
@@ -85,10 +90,30 @@ export async function indexEdition(
   const bytes = pdfBytes ?? (await readFile(absolutePdfPath(edition.pdfPath)));
   const result = await extractEditionPages(bytes, { ocr });
 
+  // Re-extracting the original text must not throw away AI transcriptions
+  // (hours of free-tier quota): carry them over onto the recreated rows.
+  const revisions = new Map(
+    (
+      await prisma.editionPage.findMany({
+        where: { editionId, revisedAt: { not: null } },
+        select: { page: true, revisedText: true, revisedModel: true, revisedAt: true },
+      })
+    ).map((r) => [r.page, r])
+  );
+
   await prisma.$transaction([
     prisma.editionPage.deleteMany({ where: { editionId } }),
     prisma.editionPage.createMany({
-      data: result.pages.map((p) => ({ editionId, page: p.page, text: p.text, ocr: p.ocr })),
+      data: result.pages.map((p) => {
+        const r = revisions.get(p.page);
+        return {
+          editionId,
+          page: p.page,
+          text: p.text,
+          ocr: p.ocr,
+          ...(r ? { revisedText: r.revisedText, revisedModel: r.revisedModel, revisedAt: r.revisedAt } : {}),
+        };
+      }),
     }),
     prisma.edition.update({ where: { id: editionId }, data: { pageCount: result.pagesTotal } }),
   ]);

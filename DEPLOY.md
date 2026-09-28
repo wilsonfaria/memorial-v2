@@ -60,7 +60,30 @@ busca usa automaticamente o FULLTEXT do MariaDB.
    devolve. Se o Meilisearch for recriado, use **Reenviar ao Meilisearch**
    (reconstrói o índice a partir do banco em segundos, sem ler PDFs).
 
-## 5. Arquivos das edições
+## 5. Transcrição com IA (Google Gemini, plano gratuito)
+
+A IA lê a **imagem** de cada página e transcreve o texto mantendo a ortografia
+da época ("instrucção", "idéa", "Collegio"), marcando `[ilegível]`/`[?]`. O
+texto fica em `edition_pages.revisedText`, ao lado do OCR original (que nunca é
+apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
+
+1. Crie a chave em https://aistudio.google.com/apikey (sem cartão = plano gratuito).
+2. No app do Coolify: `GEMINI_API_KEY` (**Not available during build**).
+3. Opcional: `GEMINI_MODELS` — lista, em ordem de preferência, dos modelos
+   revezados. Padrão: `gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.8-flash`.
+   As cotas gratuitas são **por modelo e por dia** (o 3.8-flash, p.ex., só 20
+   pedidos/dia); quando uma acaba, o próximo modelo assume. Cada página guarda
+   qual modelo a transcreveu.
+4. No admin, **Edições → Fluxo de processamento**: rode lotes pequenos (N
+   próximas ou aleatórias), ou marque edições na lista e escolha a etapa. Cada
+   linha mostra PDF / Texto / IA / Busca; ▶ roda o fluxo só naquela edição e
+   ↻ refaz a IA dela. Quando a cota do dia acaba, o processo para e continua de
+   onde parou no dia seguinte.
+
+`scripts/ocr-pilot.ts` compara modelos (NVIDIA, Gemini, Groq) em algumas páginas
+e gera um relatório lado a lado — útil antes de trocar de modelo.
+
+## 6. Arquivos das edições
 
 As miniaturas vão pelo Git (`public/uploads/thumbnails`) e são copiadas para o
 volume na inicialização. Os PDFs (~4,5 GB) **não** vão no Git nem no dump do

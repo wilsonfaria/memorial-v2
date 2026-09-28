@@ -403,13 +403,22 @@ model EditionPage {
   edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
   /// 1-based page number within the PDF
   page      Int
+  /// Original text (embedded text layer or OCR) — never overwritten by the AI revision
   text      String   @db.MediumText
   /// True when the text came from OCR rather than the PDF's own text layer
   ocr       Boolean  @default(false)
+  /// AI transcription read from the page image (see src/lib/ocr-revision):
+  /// "### Título\ntexto…" articles, old spelling kept, [ilegível]/[?] marks.
+  revisedText  String?   @db.MediumText
+  revisedModel String?
+  revisedAt    DateTime?
+  /// Last failure while revising this page (cleared on success)
+  revisionError String?  @db.Text
   updatedAt DateTime @updatedAt
 
   @@id([editionId, page])
-  @@fulltext([text])
+  @@index([revisedAt])
+  @@fulltext([text, revisedText])
   @@map("edition_pages")
 }
 

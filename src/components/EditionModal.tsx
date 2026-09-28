@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { Download, X, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { Download, X, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RotateCcw, FileText } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
 import { formatDateLong, formatFileSize } from "@/lib/format";
+import TranscriptionPanel from "@/components/TranscriptionPanel";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
@@ -24,6 +25,8 @@ export default function EditionModal() {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [zoom, setZoom] = useState(1);
+  // Kept across openings: a reader who prefers the text keeps getting it.
+  const [showTranscript, setShowTranscript] = useState(false);
 
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
@@ -68,7 +71,9 @@ export default function EditionModal() {
       onClick={closeEdition}
     >
       <div
-        className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+        className={`flex h-[90vh] w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl ${
+          showTranscript ? "max-w-6xl" : "max-w-4xl"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 flex-col gap-2 border-b border-paper-200 bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
@@ -114,6 +119,19 @@ export default function EditionModal() {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setShowTranscript((v) => !v)}
+              aria-pressed={showTranscript}
+              className={`flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium ring-1 ${
+                showTranscript
+                  ? "bg-brand-600 text-white ring-brand-600"
+                  : "bg-white text-brand-700 ring-brand-200 hover:bg-brand-50"
+              }`}
+              title="Ler o texto desta página (transcrição por IA)"
+            >
+              <FileText size={15} />
+              <span className="hidden sm:inline">Transcrição</span>
+            </button>
             <a
               href={`/api/editions/${openEditionId}/file?download=1`}
               className="flex h-9 items-center gap-1.5 rounded-lg bg-accent-500 px-3 text-sm font-medium text-white shadow-sm hover:bg-accent-600"
@@ -132,7 +150,11 @@ export default function EditionModal() {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col items-center overflow-auto bg-slate-100 py-6">
+        <div className="flex min-h-0 flex-1">
+        {/* On phones the transcript replaces the page image; side by side from md up. */}
+        <div
+          className={`flex-1 flex-col items-center overflow-auto bg-slate-100 py-6 ${showTranscript ? "hidden md:flex" : "flex"}`}
+        >
           <Document
             file={`/api/editions/${openEditionId}/file`}
             onLoadSuccess={({ numPages }) => {
@@ -166,6 +188,12 @@ export default function EditionModal() {
               className="shadow-lg"
             />
           </Document>
+        </div>
+        {showTranscript && (
+          <div className="w-full shrink-0 border-l border-paper-200 bg-white md:w-[44%]">
+            <TranscriptionPanel editionId={openEditionId} page={pageNumber} />
+          </div>
+        )}
         </div>
 
         {numPages && numPages > 1 && (
