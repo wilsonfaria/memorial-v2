@@ -6,7 +6,7 @@ import { Loader2, Sparkles } from "lucide-react";
 type Transcription = { page: number; text: string | null; model: string | null; revisedAt: string | null };
 
 /** "### Título\ntexto" articles → headings + paragraphs, with [ilegível]/[?] highlighted. */
-function Articles({ text }: { text: string }) {
+export function Articles({ text }: { text: string }) {
   const articles = text
     .split(/^###\s*/m)
     .map((c) => c.trim())

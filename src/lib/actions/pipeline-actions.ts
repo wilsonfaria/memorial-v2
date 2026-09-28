@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import {
   getPipelineStatuses,
   getPipelineTotals,
@@ -31,6 +32,17 @@ export async function pipelineStepAction(editionId: number, stage: PipelineStage
 export async function pipelineStatusAction(editionIds: number[]) {
   await requireSession();
   return getPipelineStatuses(editionIds.map(Number).filter(Number.isInteger).slice(0, 100));
+}
+
+/** Human names for the run log ("Edição nº 1329"), instead of database ids. */
+export async function editionLabelsAction(editionIds: number[]): Promise<Record<number, string>> {
+  await requireSession();
+  const ids = editionIds.map(Number).filter(Number.isInteger).slice(0, 100);
+  const rows = await prisma.edition.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, title: true, editionNumber: true },
+  });
+  return Object.fromEntries(rows.map((e) => [e.id, e.editionNumber != null ? `Edição nº ${e.editionNumber}` : e.title]));
 }
 
 export async function pipelineTotalsAction() {

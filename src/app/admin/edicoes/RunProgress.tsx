@@ -21,7 +21,7 @@ export default function RunProgress({ state, onStop, onClear }: { state: RunStat
       <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
         <span className="font-medium text-slate-700">
           {PLAN_LABEL[state.plan]} · {state.done}/{state.total} edição(ões)
-          {state.current != null && <span className="text-slate-500"> · processando a edição {state.current}</span>}
+          {state.current != null && <span className="text-slate-500"> · processando {state.current}</span>}
         </span>
         {state.running ? (
           <button
@@ -48,7 +48,7 @@ export default function RunProgress({ state, onStop, onClear }: { state: RunStat
         <ul className="mt-2 max-h-40 overflow-auto font-mono text-[11px] leading-relaxed">
           {state.log.map((l, i) => (
             <li key={i} className={l.kind === "err" ? "text-red-600" : l.kind === "ok" ? "text-slate-600" : "text-slate-400"}>
-              {l.id != null && <span className="text-slate-400">#{l.id} </span>}
+              {l.edition != null && <span className="text-slate-400">{l.edition} · </span>}
               {l.text}
             </li>
           ))}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Trash2, ScanText, Check, Play, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Trash2, ScanText, Check, Play, RotateCcw, BookOpenText } from "lucide-react";
 import {
   bulkDeleteEditionsAction,
   deleteEditionAction,
@@ -167,7 +168,7 @@ export default function EditionsList({
         <div
           key={e.id}
           className={`flex flex-wrap items-center gap-3 rounded-lg border bg-white px-4 py-2.5 ${
-            runner.state.current === e.id ? "border-brand-400 ring-1 ring-brand-200" : "border-paper-200"
+            runner.state.currentId === e.id ? "border-brand-400 ring-1 ring-brand-200" : "border-paper-200"
           }`}
         >
           <input
@@ -178,7 +179,7 @@ export default function EditionsList({
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-700">
-              {e.title} <span className="text-xs font-normal text-slate-400">#{e.id}</span>
+              {e.title}
             </p>
             <p className="text-xs text-slate-400">
               {formatDate(e.publishedAt)} · {e.month.year.decade.label} / {e.month.year.year} · {formatFileSize(e.fileSizeBytes)}
@@ -205,6 +206,13 @@ export default function EditionsList({
             >
               <RotateCcw size={13} />
             </button>
+            <Link
+              href={`/admin/edicoes/${e.id}`}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
+              title="Ver transcrição (IA e OCR original, página por página)"
+            >
+              <BookOpenText size={14} />
+            </Link>
             <OcrButton id={e.id} hasExtractedText={e.hasExtractedText} />
             <form
               action={deleteEditionAction}
