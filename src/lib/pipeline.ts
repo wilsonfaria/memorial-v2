@@ -137,10 +137,13 @@ export async function runPipelineStep(editionId: number, stage: PipelineStage): 
   }
 }
 
-/** Clears an edition's AI transcriptions (and errors) so "revise" redoes every page. */
+/**
+ * Clears an edition's AI transcriptions (and errors) so "revise" redoes every
+ * page. Pages a person verified are left alone — their text is the reference.
+ */
 export async function resetRevision(editionId: number, onlyFailed = false): Promise<number> {
   const r = await prisma.editionPage.updateMany({
-    where: { editionId, ...(onlyFailed ? { revisionError: { not: null } } : {}) },
+    where: { editionId, verifiedAt: null, ...(onlyFailed ? { revisionError: { not: null } } : {}) },
     data: onlyFailed
       ? { revisionError: null }
       : { revisedText: null, revisedModel: null, revisedAt: null, revisionError: null },

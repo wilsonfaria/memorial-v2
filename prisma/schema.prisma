@@ -418,12 +418,41 @@ model EditionPage {
   revisedAt    DateTime?
   /// Last failure while revising this page (cleared on success)
   revisionError String?  @db.Text
+  /// Set when a person checked (and possibly corrected) revisedText in the
+  /// admin. Verified pages are the gold set used to measure the AI models, and
+  /// "redo AI" never overwrites them.
+  verifiedAt DateTime?
+  verifiedBy String?
   updatedAt DateTime @updatedAt
 
   @@id([editionId, page])
   @@index([revisedAt])
   @@fulltext([text, revisedText])
+  @@index([verifiedAt])
   @@map("edition_pages")
+}
+
+/// Every text a page's transcription has had — each AI run and each human
+/// edit — so corrections can be reviewed, restored, and compared (the first AI
+/// version vs. the human-verified one gives the model's error rate).
+/// Linked to the edition, not the page row: re-extracting a PDF recreates the
+/// page rows, and the history must survive that.
+model PageTextVersion {
+  id        Int      @id @default(autoincrement())
+  editionId Int
+  edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  page      Int
+  text      String   @db.MediumText
+  /// "ai" | "human"
+  source    String   @db.VarChar(10)
+  /// AI model(s) that produced it (source = "ai")
+  model     String?
+  /// Admin username (source = "human")
+  author    String?
+  createdAt DateTime @default(now())
+
+  @@index([editionId, page, createdAt])
+  @@map("page_text_versions")
 }
 
 model Edition {
@@ -449,6 +478,7 @@ model Edition {
   /// Text of each PDF page — the source of truth for full-text search
   /// (see src/lib/search). Filled on upload and by the admin "Indexar busca".
   pages  EditionPage[]
+  textVersions PageTextVersion[]
 
   @@index([publishedAt])
   @@map("editions")

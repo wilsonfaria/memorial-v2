@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Play, Workflow } from "lucide-react";
 import { pickEditionsAction } from "@/lib/actions/pipeline-actions";
 import type { PickCriterion } from "@/lib/pipeline";
@@ -64,7 +65,12 @@ export default function PipelinePanel({ totals }: { totals: Totals }) {
       <div className="mb-3 flex items-start gap-2">
         <Workflow size={16} className="mt-0.5 text-brand-600" />
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">Fluxo de processamento</h2>
+          <h2 className="flex flex-wrap items-baseline gap-x-3 text-sm font-semibold text-slate-700">
+            Fluxo de processamento
+            <Link href="/admin/edicoes/qualidade" className="text-xs font-normal text-brand-700 hover:underline">
+              Qualidade da IA →
+            </Link>
+          </h2>
           <p className="mt-0.5 text-xs text-slate-500">
             PDF → texto do PDF → transcrição com IA (Gemini, lendo a imagem da página) → busca. Rode em lotes pequenos: o
             plano gratuito do Gemini tem cota diária — quando ela acaba, o processo para e continua de onde parou no dia

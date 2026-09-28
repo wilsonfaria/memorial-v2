@@ -96,7 +96,7 @@ export async function indexEdition(
     (
       await prisma.editionPage.findMany({
         where: { editionId, revisedAt: { not: null } },
-        select: { page: true, revisedText: true, revisedModel: true, revisedAt: true },
+        select: { page: true, revisedText: true, revisedModel: true, revisedAt: true, verifiedAt: true, verifiedBy: true },
       })
     ).map((r) => [r.page, r])
   );
@@ -111,7 +111,15 @@ export async function indexEdition(
           page: p.page,
           text: p.text,
           ocr: p.ocr,
-          ...(r ? { revisedText: r.revisedText, revisedModel: r.revisedModel, revisedAt: r.revisedAt } : {}),
+          ...(r
+            ? {
+                revisedText: r.revisedText,
+                revisedModel: r.revisedModel,
+                revisedAt: r.revisedAt,
+                verifiedAt: r.verifiedAt,
+                verifiedBy: r.verifiedBy,
+              }
+            : {}),
         };
       }),
     }),

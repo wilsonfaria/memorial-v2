@@ -9,7 +9,8 @@
     "start:prod": "prisma migrate deploy && node scripts/seed-uploads.mjs && next start",
     "seed:uploads": "node scripts/seed-uploads.mjs",
     "lint": "eslint",
-    "postinstall": "prisma generate && node scripts/copy-pdf-worker.mjs"
+    "postinstall": "prisma generate && node scripts/copy-pdf-worker.mjs",
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.100",

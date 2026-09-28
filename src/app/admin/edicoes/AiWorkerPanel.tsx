@@ -89,7 +89,8 @@ export default function AiWorkerPanel() {
             <h2 className="text-sm font-semibold text-slate-700">Transcrição automática (IA)</h2>
             <p className="mt-0.5 max-w-prose text-xs text-slate-500">
               Transcreve sozinha todas as páginas pendentes, no servidor — pode fechar o navegador. Respeita o plano
-              gratuito: no máximo ~9 pedidos por minuto ao Gemini, mais a pausa escolhida entre páginas. Quando a cota
+              gratuito: cada modelo fica abaixo do seu limite por minuto (Flash Lite 15, Flash 5), mais a pausa
+              escolhida entre páginas. Quando a cota
               do dia acaba, espera o Google renovar (por volta das 4h–5h) e continua de onde parou.
             </p>
           </div>

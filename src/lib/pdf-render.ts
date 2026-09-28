@@ -100,6 +100,11 @@ export async function renderPdfFirstPageToJpeg(pdfBytes: Buffer, targetWidth = 4
   return withRenderedPage(pdfBytes, 1, targetWidth, (canvas) => canvas.encode("jpeg", 82));
 }
 
+/** One whole page as a JPEG (admin transcription review shows it next to the text). */
+export async function renderPdfPageToJpeg(pdfBytes: Buffer, pageNumber: number, targetWidth = 1400): Promise<Buffer> {
+  return withRenderedPage(pdfBytes, pageNumber, targetWidth, (canvas) => canvas.encode("jpeg", 80));
+}
+
 /**
  * Renders a page at `width` px and slices it into horizontal bands no taller
  * than `maxTileHeight`, overlapping by `overlap` px so no text line is lost at

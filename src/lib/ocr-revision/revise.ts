@@ -62,11 +62,14 @@ export async function revisePage(editionId: number, page: number): Promise<Revis
   const revisedText = bands.filter(Boolean).join("\n\n");
   if (!revisedText) throw new Error("O modelo não devolveu texto para esta página.");
 
-  await prisma.editionPage.update({
-    where: { editionId_page: { editionId, page } },
-    // Usually one model; two when a quota ran out mid-page and the next model took over.
-    data: { revisedText, revisedModel: [...models].join(", "), revisedAt: new Date(), revisionError: null },
-  });
+  const revisedModel = [...models].join(", "); // two when a quota ran out mid-page
+  await prisma.$transaction([
+    prisma.editionPage.update({
+      where: { editionId_page: { editionId, page } },
+      data: { revisedText, revisedModel, revisedAt: new Date(), revisionError: null },
+    }),
+    prisma.pageTextVersion.create({ data: { editionId, page, text: revisedText, source: "ai", model: revisedModel } }),
+  ]);
   await reindexFromDatabase([editionId]);
   return { editionId, page, chars: revisedText.length, bands: tiles.length };
 }

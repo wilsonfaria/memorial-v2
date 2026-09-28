@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import PageHeader from "@/components/admin/PageHeader";
-import { Articles } from "@/components/TranscriptionPanel";
+import PageReview from "./PageReview";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,16 @@ export default async function EditionTranscriptionPage({ params }: { params: Pro
       publishedAt: true,
       pages: {
         orderBy: { page: "asc" },
-        select: { page: true, text: true, revisedText: true, revisedModel: true, revisedAt: true, revisionError: true },
+        select: {
+          page: true,
+          text: true,
+          revisedText: true,
+          revisedModel: true,
+          revisedAt: true,
+          revisionError: true,
+          verifiedAt: true,
+          verifiedBy: true,
+        },
       },
     },
   });
@@ -28,6 +37,7 @@ export default async function EditionTranscriptionPage({ params }: { params: Pro
 
   const name = edition.editionNumber != null ? `Edição nº ${edition.editionNumber}` : edition.title;
   const revised = edition.pages.filter((p) => p.revisedAt).length;
+  const verified = edition.pages.filter((p) => p.verifiedAt).length;
 
   return (
     <div>
@@ -36,7 +46,7 @@ export default async function EditionTranscriptionPage({ params }: { params: Pro
       </Link>
       <PageHeader
         title={`Transcrição · ${name}`}
-        description={`${formatDate(edition.publishedAt)} · ${revised} de ${edition.pages.length} página(s) transcritas pela IA. O texto original do OCR fica guardado e pode ser comparado abaixo de cada página.`}
+        description={`${formatDate(edition.publishedAt)} · ${revised} de ${edition.pages.length} página(s) transcritas pela IA · ${verified} conferida(s). "Conferir" confirma que o texto está certo; "Corrigir" abre a página digitalizada ao lado do texto. Páginas conferidas formam o gabarito que mede a qualidade de cada modelo.`}
         action={
           <a
             href={`/api/editions/${edition.id}/file`}
@@ -57,47 +67,15 @@ export default async function EditionTranscriptionPage({ params }: { params: Pro
 
       <div className="flex flex-col gap-6">
         {edition.pages.map((p) => (
-          <section key={p.page} className="rounded-xl border border-paper-200 bg-white p-5">
-            <header className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-paper-100 pb-3">
-              <h2 className="font-semibold text-brand-900">Página {p.page}</h2>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
-                {p.revisedAt ? (
-                  <span className="inline-flex items-center gap-1 text-green-700">
-                    <Sparkles size={12} /> {p.revisedModel} · {formatDate(p.revisedAt)}
-                  </span>
-                ) : p.revisionError ? (
-                  <span className="text-red-600" title={p.revisionError}>
-                    IA falhou nesta página
-                  </span>
-                ) : (
-                  <span>IA pendente</span>
-                )}
-                <a
-                  href={`/api/editions/${edition.id}/file#page=${p.page}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-brand-700 hover:underline"
-                >
-                  ver no PDF
-                </a>
-              </div>
-            </header>
-
-            {p.revisedText ? (
-              <Articles text={p.revisedText} />
-            ) : (
-              <p className="text-sm text-slate-400">
-                {p.revisionError ? `Erro: ${p.revisionError.slice(0, 300)}` : "Ainda não transcrita pela IA."}
-              </p>
-            )}
-
-            <details className="mt-4 rounded-lg bg-paper-50 p-3" open={!p.revisedText}>
-              <summary className="cursor-pointer text-xs font-medium text-slate-500">Texto original do OCR</summary>
-              <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap font-mono text-xs leading-relaxed text-slate-600">
-                {p.text || "(vazio)"}
-              </pre>
-            </details>
-          </section>
+          <PageReview
+            key={p.page}
+            editionId={edition.id}
+            p={{
+              ...p,
+              revisedAt: p.revisedAt?.toISOString() ?? null,
+              verifiedAt: p.verifiedAt?.toISOString() ?? null,
+            }}
+          />
         ))}
       </div>
     </div>
