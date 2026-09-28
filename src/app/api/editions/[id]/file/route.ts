@@ -1,10 +1,8 @@
-import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
-import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { prisma } from "@/lib/prisma";
 import { absolutePdfPath } from "@/lib/storage";
 import { recordAnalyticsEvent } from "@/lib/analytics";
+import { fileStream, parseRange } from "@/lib/file-response";
 
 export async function GET(
   request: Request,
@@ -39,24 +37,32 @@ export async function GET(
     return new Response("Arquivo não encontrado no armazenamento", { status: 404 });
   }
 
+  const range = parseRange(request.headers.get("range"), size);
+  if (range === "invalid") {
+    return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
+  }
+
   const isDownload = new URL(request.url).searchParams.get("download") != null;
-  if (isDownload) {
+  // Count a download once, not once per byte range the browser asks for.
+  if (isDownload && (!range || range.start === 0)) {
     await recordAnalyticsEvent("EDITION_DOWNLOAD", edition.id);
   }
   const fileName = `${edition.title.replace(/[^\w\-À-ÿ ]/g, "")}.pdf`;
 
-  const webStream = Readable.toWeb(
-    createReadStream(absPath)
-  ) as NodeWebReadableStream<Uint8Array>;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/pdf",
+    "Accept-Ranges": "bytes",
+    "Content-Disposition": `${isDownload ? "attachment" : "inline"}; filename="${encodeURIComponent(fileName)}"`,
+    "Cache-Control": "private, max-age=3600",
+  };
 
-  return new Response(webStream as unknown as BodyInit, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Length": String(size),
-      "Content-Disposition": `${isDownload ? "attachment" : "inline"}; filename="${encodeURIComponent(
-        fileName
-      )}"`,
-      "Cache-Control": "private, max-age=3600",
-    },
-  });
+  // Range support lets pdf.js fetch only the parts it needs to show the
+  // first page, instead of waiting for the whole (often 5+ MB) file.
+  if (range) {
+    headers["Content-Range"] = `bytes ${range.start}-${range.end}/${size}`;
+    headers["Content-Length"] = String(range.end - range.start + 1);
+    return new Response(fileStream(absPath, range.start, range.end), { status: 206, headers });
+  }
+  headers["Content-Length"] = String(size);
+  return new Response(fileStream(absPath), { headers });
 }

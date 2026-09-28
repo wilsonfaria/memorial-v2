@@ -1,9 +1,7 @@
-import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { Readable } from "node:stream";
-import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { UPLOADS_ROOT } from "@/lib/uploads-root";
+import { fileStream } from "@/lib/file-response";
 
 const MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -34,9 +32,7 @@ export async function GET(
   }
 
   const contentType = MIME_BY_EXT[path.extname(abs).toLowerCase()] ?? "application/octet-stream";
-  const webStream = Readable.toWeb(createReadStream(abs)) as NodeWebReadableStream<Uint8Array>;
-
-  return new Response(webStream as unknown as BodyInit, {
+  return new Response(fileStream(abs), {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(size),
