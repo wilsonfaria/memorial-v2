@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
+import { reflowText } from "@/lib/ocr-revision/reflow";
 import { absolutePdfPath } from "@/lib/storage";
 import { extractEditionPages, type ExtractionResult } from "@/lib/ocr";
 import {
@@ -39,7 +40,8 @@ function toDocs(edition: EditionForDocs, pages: PageText[]): MeiliPageDoc[] {
     page: p.page,
     // Prefer the AI transcription (readable snippets); the original OCR stays
     // searchable in ocrText so nothing that matched before stops matching.
-    text: p.revisedText ?? p.text,
+    // reflowText rejoins words the AI split across column lines ("Xando-ca").
+    text: p.revisedText ? reflowText(p.revisedText) : p.text,
     ...(p.revisedText ? { ocrText: p.text } : {}),
     title: edition.title,
     editionNumber: edition.editionNumber,

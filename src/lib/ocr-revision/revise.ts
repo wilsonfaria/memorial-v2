@@ -4,6 +4,7 @@ import { absolutePdfPath } from "@/lib/storage";
 import { renderPdfPageTilesToJpeg } from "@/lib/pdf-render";
 import { reindexFromDatabase } from "@/lib/search/indexer";
 import { DailyQuotaError, transcribeImage } from "@/lib/ocr-revision/gemini";
+import { reflowText } from "@/lib/ocr-revision/reflow";
 
 /**
  * AI transcription of newspaper pages from their images. Each page is
@@ -24,7 +25,7 @@ Regras obrigatórias:
   "instrucção" (não "instrução"), "collegio" (não "colégio"), "idéa" (não "ideia"), "incumbencia" sem acento
   se estiver sem acento, "nella", "taes", "annunciado", "Piumhy", "sôbre", "pharmacia", "extrail-o".
 - Trecho que não dá para ler: escreva [ilegível]. Palavra de leitura duvidosa: escreva a palavra seguida de [?].
-- Junte palavras hifenizadas na quebra de linha ("abasteci- mento" → "abastecimento").
+- NÃO reproduza as quebras de linha das colunas: escreva cada parágrafo corrido, numa linha só, e junte as palavras hifenizadas na quebra ("abasteci- mento" → "abastecimento"). Quebre a linha só entre parágrafos, itens de lista e linhas de anúncio.
 - Siga a ordem de leitura: cada coluna de cima para baixo, da esquerda para a direita; cada matéria inteira antes da próxima.
 - Anúncios e tabelas: transcreva o texto que houver, em linhas simples.
 Formato da resposta (texto simples, sem JSON, sem markdown além disto):
@@ -55,7 +56,7 @@ export async function revisePage(editionId: number, page: number): Promise<Revis
   const models = new Set<string>();
   for (const tile of tiles) {
     const r = await transcribeImage(tile, INSTRUCTIONS);
-    bands.push(cleanBand(r.text));
+    bands.push(reflowText(cleanBand(r.text)));
     models.add(r.model);
   }
   const revisedText = bands.filter(Boolean).join("\n\n");

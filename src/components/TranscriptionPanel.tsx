@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { reflowText } from "@/lib/ocr-revision/reflow";
 
 type Transcription = { page: number; text: string | null; model: string | null; revisedAt: string | null };
 
 /** "### Título\ntexto" articles → headings + paragraphs, with [ilegível]/[?] highlighted. */
 export function Articles({ text }: { text: string }) {
-  const articles = text
+  const articles = reflowText(text)
     .split(/^###\s*/m)
     .map((c) => c.trim())
     .filter(Boolean)
