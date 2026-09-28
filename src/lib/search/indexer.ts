@@ -38,11 +38,9 @@ function toDocs(edition: EditionForDocs, pages: PageText[]): MeiliPageDoc[] {
     id: `${edition.id}-${p.page}`,
     editionId: edition.id,
     page: p.page,
-    // Prefer the AI transcription (readable snippets); the original OCR stays
-    // searchable in ocrText so nothing that matched before stops matching.
-    // reflowText rejoins words the AI split across column lines ("Xando-ca").
+    // AI transcription when there is one, else the OCR (the OCR stays in the
+    // database). reflowText rejoins words the AI split across column lines.
     text: p.revisedText ? reflowText(p.revisedText) : p.text,
-    ...(p.revisedText ? { ocrText: p.text } : {}),
     title: edition.title,
     editionNumber: edition.editionNumber,
     date,

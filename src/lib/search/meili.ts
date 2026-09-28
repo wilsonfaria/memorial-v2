@@ -14,10 +14,12 @@ export type MeiliPageDoc = {
   id: string; // `${editionId}-${page}`
   editionId: number;
   page: number;
-  /** AI-revised transcription when available, else the original OCR text */
+  /**
+   * The best text the page has: the AI transcription when available, else the
+   * original OCR. Only one version per page, so a hit always shows up in the
+   * snippet (OCR misreads no longer surface pages whose text lacks the word).
+   */
   text: string;
-  /** Original OCR text, only when `text` is the revised one — keeps it searchable for recall */
-  ocrText?: string;
   title: string;
   editionNumber: number | null;
   date: string; // YYYY-MM-DD
@@ -29,12 +31,12 @@ export type MeiliPageDoc = {
 };
 
 const SETTINGS = {
-  searchableAttributes: ["text", "ocrText", "title", "editionNumber"],
+  searchableAttributes: ["text", "title", "editionNumber"],
   filterableAttributes: ["editionId", "decade", "year", "month", "day"],
   sortableAttributes: ["timestamp"],
   distinctAttribute: "editionId",
   displayedAttributes: ["id", "editionId", "page", "text"],
-  localizedAttributes: [{ attributePatterns: ["text", "ocrText", "title"], locales: ["por"] }],
+  localizedAttributes: [{ attributePatterns: ["text", "title"], locales: ["por"] }],
   pagination: { maxTotalHits: 5000 },
 };
 
