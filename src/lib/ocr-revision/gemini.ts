@@ -20,14 +20,15 @@
  *
  * Only 3.x models that passed the fidelity probe (period spellings kept, none
  * modernized) are in the default list. Left out on purpose: gemini-3-flash
- * (wrote "instrução"), 2.x and Gemma (older / failed earlier tests).
+ * (wrote "instrução"), gemini-3.5-flash-lite (passed, but answers 503 "high
+ * demand" most of the time), 2.x and Gemma (older / failed earlier tests).
  */
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 
 export const GEMINI_MODELS = (
   process.env.GEMINI_MODELS ??
-  "gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.5-flash-lite"
+  "gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash"
 )
   .split(",")
   .map((m) => m.trim())
@@ -233,10 +234,11 @@ export async function transcribeImage(jpeg: Buffer, instructions: string): Promi
 
 /**
  * Models for text-only structured extraction (src/lib/entities): the cheap
- * Flash Lite ones, one request per page. Gemma was tried (bigger quota) but
- * took minutes per page or failed with internal errors.
+ * Flash Lite one, one request per page. Gemma was tried (bigger quota) but
+ * took minutes per page or failed with internal errors; gemini-3.5-flash-lite
+ * lives on 503 "high demand".
  */
-export const GEMINI_EXTRACT_MODELS = (process.env.GEMINI_EXTRACT_MODELS ?? "gemini-3.5-flash-lite,gemini-3.1-flash-lite")
+export const GEMINI_EXTRACT_MODELS = (process.env.GEMINI_EXTRACT_MODELS ?? "gemini-3.1-flash-lite")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);

@@ -71,7 +71,9 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
 2. No app do Coolify: `GEMINI_API_KEY` (**Not available during build**).
 3. Opcional: `GEMINI_MODELS` — lista, em ordem de preferência, dos modelos
    revezados. Padrão (só 3.x aprovados no teste de fidelidade):
-   `gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.5-flash-lite`.
+   `gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash`.
+   O `gemini-3.5-flash-lite` ficou de fora: passou no teste, mas vive com erro
+   503 ("high demand").
    Não defina a variável no Coolify a menos que queira mudar essa lista.
    As cotas gratuitas são **por modelo e por dia** (o 3.8-flash, p.ex., só 20
    pedidos/dia); quando uma acaba, o próximo modelo assume. Cada página guarda
@@ -96,7 +98,8 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
    conferidas.
 7. **Pessoas e lugares:** de cada página transcrita a IA extrai as matérias
    (tipo + resumo), as pessoas e os lugares (`GEMINI_EXTRACT_MODELS`, padrão
-   `gemini-3.5-flash-lite,gemini-3.1-flash-lite`, 1 pedido por página). O
+   `gemini-3.1-flash-lite`, 1 pedido por página; o 3.5-flash-lite saiu pelo
+   mesmo erro 503). O
    site ganha `/pessoas` e `/lugares` — acrescente-os ao menu em **Menus**.
    `npx tsx scripts/extract-entities.ts` extrai pelo terminal.
 
