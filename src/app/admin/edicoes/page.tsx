@@ -8,6 +8,7 @@ import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
 import SearchIndexPanel from "./SearchIndexPanel";
 import PipelinePanel from "./PipelinePanel";
+import AiWorkerPanel from "./AiWorkerPanel";
 import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
 import { getPipelineStatuses, getPipelineTotals } from "@/lib/pipeline";
 
@@ -120,6 +121,7 @@ export default async function AdminEditionsPage({
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
       />
 
+      <AiWorkerPanel />
       <PipelinePanel totals={pipelineTotals} />
 
       <SearchIndexPanel initialStatus={searchStatus} />

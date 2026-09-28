@@ -13,6 +13,8 @@ import {
   type PickCriterion,
   type PipelineStage,
 } from "@/lib/pipeline";
+import { getWorkerState, wakeWorker } from "@/lib/ocr-revision/worker";
+import { getRevisionStats } from "@/lib/ocr-revision/revise";
 
 async function requireSession() {
   const session = await getSession();
@@ -66,4 +68,32 @@ export async function pickEditionsAction(criterion: PickCriterion, count: number
 export async function pipelineDoneAction() {
   await requireSession();
   revalidatePath("/admin/edicoes");
+}
+
+/** Background AI transcription: settings, live state and page counts for the admin panel. */
+export async function aiWorkerStatusAction() {
+  await requireSession();
+  const [settings, stats] = await Promise.all([
+    prisma.siteSetting.findUnique({ where: { id: 1 }, select: { aiWorkerEnabled: true, aiWorkerIntervalSec: true } }),
+    getRevisionStats(),
+  ]);
+  return {
+    enabled: settings?.aiWorkerEnabled ?? false,
+    intervalSec: settings?.aiWorkerIntervalSec ?? 20,
+    state: getWorkerState(),
+    stats,
+  };
+}
+
+export async function aiWorkerSetAction(enabled: boolean, intervalSec: number) {
+  await requireSession();
+  const interval = Math.min(600, Math.max(0, Math.round(Number(intervalSec) || 0)));
+  const data = { aiWorkerEnabled: Boolean(enabled), aiWorkerIntervalSec: interval };
+  await prisma.siteSetting.upsert({
+    where: { id: 1 },
+    update: data,
+    create: { id: 1, creditsText: "willabs.ia.br", ...data },
+  });
+  wakeWorker(); // apply now instead of after the current wait
+  return aiWorkerStatusAction();
 }

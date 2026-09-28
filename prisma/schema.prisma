@@ -27,6 +27,10 @@ model SiteSetting {
   /// How many banners the sponsor strip (above the footer, every page) shows
   /// per page view: pinned banners always, then random ones up to this total.
   bannerSlots  Int      @default(8)
+  /// Background AI transcription of pending pages (src/lib/ocr-revision/worker.ts).
+  aiWorkerEnabled     Boolean @default(false)
+  /// Pause between pages, in seconds, on top of the per-request Gemini throttle.
+  aiWorkerIntervalSec Int     @default(20)
   updatedAt    DateTime @updatedAt
 
   @@map("site_settings")

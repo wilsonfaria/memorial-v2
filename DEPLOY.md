@@ -80,6 +80,13 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
    ↻ refaz a IA dela. Quando a cota do dia acaba, o processo para e continua de
    onde parou no dia seguinte.
 
+5. **Transcrição automática** (mesma tela): o botão **Ligar** faz o servidor
+   transcrever sozinho todas as páginas pendentes, sem precisar do navegador
+   aberto. Cada pedido ao Gemini respeita um intervalo mínimo
+   (`GEMINI_MIN_INTERVAL_MS`, padrão 6500 ms ≈ 9/min), mais a pausa escolhida
+   entre páginas; quando a cota do dia acaba, dorme até o Google renovar
+   (meia-noite do Pacífico) e continua. `AI_WORKER=off` desativa o recurso.
+
 `scripts/ocr-pilot.ts` compara modelos (NVIDIA, Gemini, Groq) em algumas páginas
 e gera um relatório lado a lado — útil antes de trocar de modelo.
 

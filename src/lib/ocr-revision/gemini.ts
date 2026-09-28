@@ -13,6 +13,10 @@
  * Limits come in two kinds:
  *  - per minute → wait the retry delay Google suggests and try again;
  *  - per day    → mark that model exhausted until tomorrow, try the next one.
+ *
+ * Every request also goes through a throttle (GEMINI_MIN_INTERVAL_MS between
+ * calls, default 6.5 s ≈ 9 per minute) so neither the admin runs nor the
+ * background worker ever burst above the free tier's per-minute limit.
  */
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -33,9 +37,47 @@ export function isGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-/** model → day (YYYY-MM-DD, Pacific time — when Google resets free quotas) it ran out */
-const exhausted = new Map<string, string>();
+/**
+ * Process-wide state. Next.js loads this module in more than one bundle
+ * (instrumentation for the background worker, the app for admin actions), so
+ * it lives on globalThis — otherwise each copy would throttle on its own.
+ */
+type GeminiShared = {
+  /** model → day (YYYY-MM-DD, Pacific time — when Google resets free quotas) it ran out */
+  exhausted: Map<string, string>;
+  /** Earliest time the next request may start (throttle). */
+  nextSlot: number;
+};
+const shared: GeminiShared = ((globalThis as { __memorialGemini?: GeminiShared }).__memorialGemini ??= {
+  exhausted: new Map(),
+  nextSlot: 0,
+});
+const exhausted = shared.exhausted;
 const quotaDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+
+const MIN_INTERVAL_MS = Math.max(1000, Number(process.env.GEMINI_MIN_INTERVAL_MS) || 6500);
+
+/** Waits for this request's turn; concurrent callers queue up one interval apart. */
+async function throttle(): Promise<void> {
+  const now = Date.now();
+  const slot = Math.max(now, shared.nextSlot);
+  shared.nextSlot = slot + MIN_INTERVAL_MS;
+  if (slot > now) await sleep(slot - now);
+}
+
+/** Milliseconds until Google resets the free daily quotas (midnight Pacific time). */
+export function msUntilQuotaReset(): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const elapsed = (get("hour") * 3600 + get("minute") * 60 + get("second")) * 1000;
+  return 24 * 3600 * 1000 - elapsed;
+}
 
 export function availableModels(): string[] {
   const today = quotaDay();
@@ -44,8 +86,11 @@ export function availableModels(): string[] {
 
 class ModelDailyQuota extends Error {}
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 const MAX_ATTEMPTS = 5;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function callModel(model: string, jpeg: Buffer, instructions: string): Promise<string> {
   const body = JSON.stringify({
@@ -68,6 +113,7 @@ async function callModel(model: string, jpeg: Buffer, instructions: string): Pro
 
   for (let attempt = 1; ; attempt++) {
     let res: Response;
+    await throttle();
     try {
       res = await fetch(`${BASE}/chat/completions`, {
         method: "POST",
