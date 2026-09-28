@@ -14,14 +14,21 @@
  *  - per minute → wait the retry delay Google suggests and try again;
  *  - per day    → mark that model exhausted until tomorrow, try the next one.
  *
- * Every request also goes through a throttle (GEMINI_MIN_INTERVAL_MS between
- * calls, default 6.5 s ≈ 9 per minute) so neither the admin runs nor the
- * background worker ever burst above the free tier's per-minute limit.
+ * Every request also goes through a per-model throttle kept below the free
+ * tier's per-minute limit (Flash Lite 15/min, Flash 5/min), so neither the
+ * admin runs nor the background worker ever trip it.
+ *
+ * Only 3.x models that passed the fidelity probe (period spellings kept, none
+ * modernized) are in the default list. Left out on purpose: gemini-3-flash
+ * (wrote "instrução"), 2.x and Gemma (older / failed earlier tests).
  */
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 
-export const GEMINI_MODELS = (process.env.GEMINI_MODELS ?? "gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.8-flash")
+export const GEMINI_MODELS = (
+  process.env.GEMINI_MODELS ??
+  "gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.5-flash-lite"
+)
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
@@ -45,23 +52,33 @@ export function isGeminiConfigured(): boolean {
 type GeminiShared = {
   /** model → day (YYYY-MM-DD, Pacific time — when Google resets free quotas) it ran out */
   exhausted: Map<string, string>;
-  /** Earliest time the next request may start (throttle). */
-  nextSlot: number;
+  /** model → earliest time its next request may start (throttle). */
+  nextSlot: Map<string, number>;
 };
 const shared: GeminiShared = ((globalThis as { __memorialGemini?: GeminiShared }).__memorialGemini ??= {
   exhausted: new Map(),
-  nextSlot: 0,
+  nextSlot: new Map(),
 });
 const exhausted = shared.exhausted;
 const quotaDay = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 
-const MIN_INTERVAL_MS = Math.max(1000, Number(process.env.GEMINI_MIN_INTERVAL_MS) || 6500);
+/** Free-tier requests per minute (AI Studio → Rate limits): Flash Lite 15, Flash 5. */
+function requestsPerMinute(model: string): number {
+  return /flash-lite/.test(model) ? 15 : 5;
+}
 
-/** Waits for this request's turn; concurrent callers queue up one interval apart. */
-async function throttle(): Promise<void> {
+/** Spacing between requests to one model: its per-minute limit with ~15% slack. */
+function intervalMs(model: string): number {
+  const override = Number(process.env.GEMINI_MIN_INTERVAL_MS);
+  if (override > 0) return override;
+  return Math.ceil((60_000 / requestsPerMinute(model)) * 1.15);
+}
+
+/** Waits for this model's turn; concurrent callers queue up one interval apart. */
+async function throttle(model: string): Promise<void> {
   const now = Date.now();
-  const slot = Math.max(now, shared.nextSlot);
-  shared.nextSlot = slot + MIN_INTERVAL_MS;
+  const slot = Math.max(now, shared.nextSlot.get(model) ?? 0);
+  shared.nextSlot.set(model, slot + intervalMs(model));
   if (slot > now) await sleep(slot - now);
 }
 
@@ -113,7 +130,7 @@ async function callModel(model: string, jpeg: Buffer, instructions: string): Pro
 
   for (let attempt = 1; ; attempt++) {
     let res: Response;
-    await throttle();
+    await throttle(model);
     try {
       res = await fetch(`${BASE}/chat/completions`, {
         method: "POST",

@@ -16,7 +16,7 @@ import { reflowText } from "@/lib/ocr-revision/reflow";
  * modernized it or slipped into English.
  */
 
-const INSTRUCTIONS = `Esta imagem é uma faixa horizontal de uma página do jornal "Alto São Francisco" (Piumhi, MG), digitalizado. Transcreva todo o texto impresso visível na faixa. Linhas cortadas na borda de cima ou de baixo podem ser ignoradas.
+export const INSTRUCTIONS = `Esta imagem é uma faixa horizontal de uma página do jornal "Alto São Francisco" (Piumhi, MG), digitalizado. Transcreva todo o texto impresso visível na faixa. Linhas cortadas na borda de cima ou de baixo podem ser ignoradas.
 
 Regras obrigatórias:
 - O texto é em PORTUGUÊS antigo. Nunca traduza nenhuma palavra para outro idioma.

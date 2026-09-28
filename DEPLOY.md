@@ -70,7 +70,9 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
 1. Crie a chave em https://aistudio.google.com/apikey (sem cartão = plano gratuito).
 2. No app do Coolify: `GEMINI_API_KEY` (**Not available during build**).
 3. Opcional: `GEMINI_MODELS` — lista, em ordem de preferência, dos modelos
-   revezados. Padrão: `gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.8-flash`.
+   revezados. Padrão (só 3.x aprovados no teste de fidelidade):
+   `gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash,gemini-3.8-flash,gemini-3.5-flash-lite`.
+   Não defina a variável no Coolify a menos que queira mudar essa lista.
    As cotas gratuitas são **por modelo e por dia** (o 3.8-flash, p.ex., só 20
    pedidos/dia); quando uma acaba, o próximo modelo assume. Cada página guarda
    qual modelo a transcreveu.
@@ -82,8 +84,8 @@ apagado); a busca usa o revisado e o leitor ganha o botão **Transcrição**.
 
 5. **Transcrição automática** (mesma tela): o botão **Ligar** faz o servidor
    transcrever sozinho todas as páginas pendentes, sem precisar do navegador
-   aberto. Cada pedido ao Gemini respeita um intervalo mínimo
-   (`GEMINI_MIN_INTERVAL_MS`, padrão 6500 ms ≈ 9/min), mais a pausa escolhida
+   aberto. Cada modelo respeita seu limite por minuto (Flash Lite 15/min,
+   Flash 5/min; `GEMINI_MIN_INTERVAL_MS` força um intervalo fixo), mais a pausa escolhida
    entre páginas; quando a cota do dia acaba, dorme até o Google renovar
    (meia-noite do Pacífico) e continua. `AI_WORKER=off` desativa o recurso.
 
