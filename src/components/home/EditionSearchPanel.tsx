@@ -44,7 +44,7 @@ export default function EditionSearchPanel({
   }
 
   return (
-    <div className="rounded-xl border border-paper-200 bg-white p-5 shadow-lg sm:p-6">
+    <div className="edition-search rounded-xl border border-paper-200 bg-white p-5 shadow-lg sm:p-6">
       <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-brand-900">
         <Search size={18} className="text-accent-600" />
         Encontre uma edição

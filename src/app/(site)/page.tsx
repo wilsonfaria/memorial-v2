@@ -5,6 +5,7 @@ import BehindTheScenesBlock from "@/components/home/BehindTheScenesBlock";
 import TimelineSection from "@/components/home/TimelineSection";
 import OnThisDaySection from "@/components/home/OnThisDaySection";
 import BirthdayFinder from "@/components/home/BirthdayFinder";
+import HomeAtmosphere from "@/components/home/HomeAtmosphere";
 import {
   getOnThisDayEditions,
   getNavigationTree,
@@ -26,7 +27,7 @@ export default async function HomePage() {
   ]);
 
   return (
-    <>
+    <HomeAtmosphere>
       <HeroSection
         slides={heroSlides.map(({ id, imageUrl, headline, subtext, ctaLabel, ctaHref }) => ({
           id,
@@ -52,7 +53,7 @@ export default async function HomePage() {
         }}
       />
 
-      <section className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 pb-10 sm:px-6 lg:grid-cols-2 lg:px-8">
+      <section data-reveal className="home-stories mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 pb-10 sm:px-6 lg:grid-cols-2 lg:px-8">
         <MemoriaVivaBlock
           title={content.videoTitle}
           subtitle={content.videoSubtitle}
@@ -77,6 +78,6 @@ export default async function HomePage() {
       <BirthdayFinder />
 
       <TimelineSection milestones={milestones} />
-    </>
+    </HomeAtmosphere>
   );
 }

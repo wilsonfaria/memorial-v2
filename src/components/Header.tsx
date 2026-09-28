@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Home, Search, ChevronDown } from "lucide-react";
@@ -34,6 +34,22 @@ export default function Header({
   const [searchOpen, setSearchOpen] = useState(false);
   const router = useRouter();
 
+  function moveMasthead(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width;
+    const y = (event.clientY - bounds.top) / bounds.height;
+    event.currentTarget.style.setProperty("--masthead-x", `${(x - 0.5) * 18}px`);
+    event.currentTarget.style.setProperty("--masthead-y", `${(y - 0.5) * 10}px`);
+    event.currentTarget.style.setProperty("--masthead-light-x", `${x * 100}%`);
+  }
+
+  function resetMasthead(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.style.setProperty("--masthead-x", "0px");
+    event.currentTarget.style.setProperty("--masthead-y", "0px");
+    event.currentTarget.style.setProperty("--masthead-light-x", "50%");
+  }
+
   function handleSearchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = new FormData(e.currentTarget).get("q");
@@ -42,7 +58,7 @@ export default function Header({
   }
 
   return (
-    <header className="w-full">
+    <header className="memorial-header w-full">
       {/* Top utility bar */}
       <div className="hidden bg-slate-800 px-4 py-1.5 sm:px-6 lg:block lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
@@ -59,21 +75,23 @@ export default function Header({
 
       {/* Masthead */}
       <div
-        className="relative flex min-h-[180px] items-center bg-paper-50 bg-cover bg-center px-4 py-4 sm:px-6 lg:px-8"
-        style={mastheadImageUrl ? { backgroundImage: `url(${mastheadImageUrl})` } : undefined}
+        className="memorial-masthead relative flex min-h-[180px] items-center bg-paper-50 px-4 py-4 sm:px-6 lg:px-8"
+        onPointerMove={moveMasthead}
+        onPointerLeave={resetMasthead}
       >
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
-          <div className="hidden shrink-0 text-xs font-semibold uppercase leading-tight tracking-wide text-brand-700 sm:block">
-            História
-            <br />
-            Cultura
-            <br />
-            Memória
-            <br />
-            Identidade
+        <span className="masthead-scenery" aria-hidden="true">
+          <span style={mastheadImageUrl ? { backgroundImage: `url(${mastheadImageUrl})` } : undefined} />
+        </span>
+        <span className="masthead-glow" aria-hidden="true" />
+        <div className="masthead-content mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+          <div className="masthead-values hidden shrink-0 text-xs font-semibold uppercase leading-tight tracking-wide text-brand-700 sm:block">
+            <span>História</span>
+            <span>Cultura</span>
+            <span>Memória</span>
+            <span>Identidade</span>
           </div>
 
-          <Link href="/" className="flex min-w-0 flex-1 items-center justify-center gap-4">
+          <Link href="/" className="masthead-brand flex min-w-0 flex-1 items-center justify-center gap-4">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -99,7 +117,7 @@ export default function Header({
             )}
           </Link>
 
-          <div className="hidden shrink-0 items-center gap-4 lg:flex">
+          <div className="masthead-legacy hidden shrink-0 items-center gap-4 lg:flex">
             <div className="text-right leading-tight">
               <p className="font-display text-3xl font-bold text-brand-900">105 ANOS</p>
               <p className="text-sm text-slate-500">de história viva</p>
@@ -114,7 +132,7 @@ export default function Header({
       </div>
 
       {/* Nav bar */}
-      <div className="w-full bg-brand-900">
+      <div className="memorial-nav w-full bg-brand-900">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
@@ -152,7 +170,7 @@ export default function Header({
         </div>
 
         {searchOpen && (
-          <div className="border-t border-white/15 bg-brand-800 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="header-panel border-t border-white/15 bg-brand-800 px-4 py-3 sm:px-6 lg:px-8">
             <form onSubmit={handleSearchSubmit} className="mx-auto flex max-w-7xl items-center gap-2">
               <input
                 name="q"
@@ -172,7 +190,7 @@ export default function Header({
         )}
 
         {mobileOpen && (
-          <nav className="flex flex-col gap-1 border-t border-white/15 px-4 py-3 sm:px-6 lg:hidden lg:px-8">
+          <nav className="header-panel flex flex-col gap-1 border-t border-white/15 px-4 py-3 sm:px-6 lg:hidden lg:px-8">
             {menuItems.map((item) => (
               <MobileMenuItem key={item.id} item={item} onNavigate={() => setMobileOpen(false)} />
             ))}
@@ -223,7 +241,7 @@ function DesktopMenuItem({ item }: { item: PublicMenuItem }) {
       </Link>
 
       {hasChildren && open && (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-44 overflow-hidden rounded-lg border border-paper-200 bg-white py-1 shadow-lg">
+        <div className="header-panel absolute left-0 top-full z-20 mt-1 min-w-44 overflow-hidden rounded-lg border border-paper-200 bg-white py-1 shadow-lg">
           {item.children.map((child) => (
             <Link
               key={child.id}

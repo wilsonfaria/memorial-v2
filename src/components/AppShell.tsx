@@ -41,7 +41,7 @@ export default function AppShell({
 }) {
   return (
     <EditionModalProvider>
-      <div className="flex min-h-screen flex-col">
+      <div className="memorial-site flex min-h-screen flex-col">
         <Header
           newspaperName={newspaperName}
           logoUrl={logoUrl}

@@ -45,7 +45,7 @@ export default function MemoriaVivaBlock({
   const [playing, setPlaying] = useState(false);
 
   return (
-    <div className="relative flex min-h-[320px] flex-col justify-end overflow-hidden rounded-2xl bg-brand-900 p-6 text-white">
+    <div className="memory-film relative flex min-h-[320px] flex-col justify-end overflow-hidden rounded-2xl bg-brand-900 p-6 text-white">
       {playing && embedUrl ? (
         <iframe
           src={toEmbedUrl(embedUrl)}
@@ -58,7 +58,7 @@ export default function MemoriaVivaBlock({
         <>
           {thumbnailUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
+            <img src={thumbnailUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-60" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
@@ -68,11 +68,13 @@ export default function MemoriaVivaBlock({
             disabled={!embedUrl}
             className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-brand-900 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
             title={embedUrl ? "Assistir" : "Vídeo não configurado"}
+            aria-label={embedUrl ? `Assistir: ${title}` : "Vídeo não configurado"}
           >
             <Play size={26} className="ml-1" fill="currentColor" />
           </button>
 
           <div className="relative">
+            <p className="home-eyebrow home-eyebrow-light">Vozes, imagens e lembranças</p>
             <h2 className="font-display text-2xl font-bold">{title}</h2>
             {subtitle && <p className="mt-2 max-w-sm text-sm text-white/80">{subtitle}</p>}
             <button

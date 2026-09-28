@@ -17,13 +17,14 @@ export default function BirthdayFinder() {
   const error = state && "error" in state ? state.error : null;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-5 rounded-2xl border border-paper-200 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
+    <div data-reveal className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="birthday-finder flex flex-col gap-5 rounded-2xl border border-paper-200 bg-white p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-600">
             <CalendarHeart size={20} />
           </span>
           <div>
+            <p className="home-eyebrow">Sua história também está aqui</p>
             <h2 className="text-lg font-semibold text-brand-900">Qual jornal saiu no dia em que você nasceu?</h2>
             <p className="text-sm text-slate-500">Digite uma data e encontramos a edição mais próxima no acervo.</p>
           </div>
@@ -32,6 +33,7 @@ export default function BirthdayFinder() {
         <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             name="date"
+            aria-label="Data de nascimento"
             type="date"
             required
             max={new Date().toISOString().slice(0, 10)}

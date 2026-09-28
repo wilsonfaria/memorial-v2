@@ -27,8 +27,9 @@ export default function BehindTheScenesBlock({
   const photos = [photo1Url, photo2Url, photo3Url].filter((p): p is string => Boolean(p));
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-paper-200 bg-white p-6">
+    <div className="behind-scenes flex flex-col gap-4 rounded-2xl border border-paper-200 bg-white p-6">
       <div>
+        <p className="home-eyebrow">O cuidado com cada página</p>
         <h2 className="font-display text-2xl font-bold text-brand-900">{title}</h2>
         {subtext && <p className="mt-1 text-sm text-slate-500">{subtext}</p>}
       </div>
@@ -37,7 +38,7 @@ export default function BehindTheScenesBlock({
         <div className="grid grid-cols-3 gap-2">
           {photos.map((url) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={url} src={url} alt="" className="aspect-square w-full rounded-lg object-cover" />
+            <img key={url} src={url} alt="" loading="lazy" className="aspect-square w-full rounded-lg object-cover" />
           ))}
         </div>
       )}

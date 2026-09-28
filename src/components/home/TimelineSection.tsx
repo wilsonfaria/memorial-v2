@@ -6,7 +6,8 @@ export default function TimelineSection({ milestones }: { milestones: Milestone[
   if (milestones.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <section data-reveal className="home-timeline mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <p className="home-eyebrow">Um legado que atravessa gerações</p>
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <h2 className="font-display text-2xl font-bold text-brand-900">Linha do Tempo</h2>
         <Link href="/linha-do-tempo" className="text-xs font-medium text-accent-600 hover:text-accent-700">

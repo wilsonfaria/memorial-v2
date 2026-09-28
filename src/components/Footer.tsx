@@ -26,7 +26,7 @@ export default function Footer({
   creditsText?: string;
 }) {
   return (
-    <footer className="w-full bg-brand-900">
+    <footer className="memorial-footer w-full bg-brand-900">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-6 py-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           {logoUrl ? (

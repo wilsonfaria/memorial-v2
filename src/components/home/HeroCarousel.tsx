@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 export type HeroSlideData = {
   id: number;
@@ -85,7 +85,7 @@ export default function HeroCarousel({ slides, aside }: { slides: HeroSlideData[
 
   return (
     <div
-      className="relative flex min-h-[440px] items-center overflow-hidden bg-brand-900 sm:min-h-[740px]"
+      className="memorial-hero relative flex min-h-[440px] items-center overflow-hidden bg-brand-900 sm:min-h-[740px]"
       role={multiple ? "region" : undefined}
       aria-roledescription={multiple ? "carrossel" : undefined}
       aria-label={multiple ? "Destaques" : undefined}
@@ -130,16 +130,21 @@ export default function HeroCarousel({ slides, aside }: { slides: HeroSlideData[
                   : ({
                       "--kb-x": panX,
                       "--kb-y": panY,
-                      animation: multiple
-                        ? `hero-ken-burns ${KEN_BURNS_MS}ms ease-out forwards`
-                        : `hero-ken-burns 20s ease-in-out infinite alternate`,
+                      animationPlayState: paused || hovering ? "paused" : "running",
+                      animationName: "hero-ken-burns",
+                      animationDuration: multiple ? `${KEN_BURNS_MS}ms` : "20s",
+                      animationTimingFunction: multiple ? "ease-out" : "ease-in-out",
+                      animationFillMode: "forwards",
+                      animationIterationCount: multiple ? 1 : "infinite",
+                      animationDirection: multiple ? "normal" : "alternate",
                     } as CSSProperties)
               }
             />
           </div>
         );
       })}
-      <div className="absolute inset-0 bg-gradient-to-r from-brand-900/85 via-brand-900/35 to-brand-900/10" />
+      <div className="hero-shade absolute inset-0 bg-gradient-to-r from-brand-900/85 via-brand-900/35 to-brand-900/10" />
+      <div className="hero-light" aria-hidden="true" />
 
       {aside && (
         // Anchored to the hero's bottom-right corner, pushed 15px below the
@@ -163,16 +168,18 @@ export default function HeroCarousel({ slides, aside }: { slides: HeroSlideData[
                 inert={!isActive}
                 className={`[grid-area:1/1] ${fade} ${isActive ? "opacity-100" : "pointer-events-none opacity-0"}`}
               >
-                <Heading className="font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+                <p className="hero-eyebrow"><span aria-hidden="true" />História que permanece viva</p>
+                <Heading className="hero-headline font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
                   {slide.headline}
                 </Heading>
-                {slide.subtext && <p className="mt-4 text-sm text-white/80 sm:text-base">{slide.subtext}</p>}
+                {slide.subtext && <p className="hero-description mt-4 text-sm text-white/80 sm:text-base">{slide.subtext}</p>}
                 {slide.ctaLabel && slide.ctaHref && (
                   <Link
                     href={slide.ctaHref}
-                    className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-6 py-3 text-sm font-semibold text-white hover:bg-accent-700"
+                    className="hero-cta mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-6 py-3 text-sm font-semibold text-white hover:bg-accent-700"
                   >
                     {slide.ctaLabel}
+                    <ArrowUpRight size={18} aria-hidden="true" />
                   </Link>
                 )}
               </div>
@@ -185,7 +192,7 @@ export default function HeroCarousel({ slides, aside }: { slides: HeroSlideData[
         <>
           {/* Controls sit bottom-center, above the search panel (which overlaps
               the hero's bottom 40px) and clear of the cover mockups on the right. */}
-          <div className="absolute inset-x-0 bottom-14 flex items-center justify-center gap-2">
+          <div className="hero-controls absolute inset-x-0 bottom-14 flex items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => go(active - 1)}
