@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { reflowText } from "@/lib/ocr-revision/reflow";
-import { DailyQuotaError, ModelBusyError, generateJson, noRealError } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, generateJson, noRealError } from "@/lib/ai-providers/registry";
 import { displayName, entityKey, isUsableName, slugFromKey, splitHonorific } from "@/lib/entities/normalize";
 import { ARTICLE_KINDS, PRIVATE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
 

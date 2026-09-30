@@ -9,8 +9,10 @@ import EditionsList from "./EditionsList";
 import SearchIndexPanel from "./SearchIndexPanel";
 import PipelinePanel from "./PipelinePanel";
 import AiWorkerPanel from "./AiWorkerPanel";
+import AiProviderPanel from "./AiProviderPanel";
 import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
 import { getPipelineStatuses, getPipelineTotals } from "@/lib/pipeline";
+import { getProviderStatuses } from "@/lib/ai-providers/registry";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +123,7 @@ export default async function AdminEditionsPage({
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
       />
 
+      <AiProviderPanel providers={getProviderStatuses()} />
       <AiWorkerPanel />
       <PipelinePanel totals={pipelineTotals} />
 

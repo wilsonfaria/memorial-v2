@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { absolutePdfPath } from "@/lib/storage";
 import { renderPdfPageTilesToJpeg } from "@/lib/pdf-render";
 import { reindexFromDatabase } from "@/lib/search/indexer";
-import { DailyQuotaError, ModelBusyError, noRealError, transcribeImage } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, noRealError, transcribeImage } from "@/lib/ai-providers/registry";
 import { reflowText } from "@/lib/ocr-revision/reflow";
 import { clearPageExtraction } from "@/lib/entities/extract";
 

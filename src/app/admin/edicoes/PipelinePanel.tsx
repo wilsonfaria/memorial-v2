@@ -15,7 +15,7 @@ type Totals = {
   revised: number;
   errors: number;
   fullyRevised: number;
-  gemini: boolean;
+  aiConfigured: boolean;
 };
 
 const CRITERION_LABEL: Record<PickCriterion, string> = {
@@ -95,8 +95,8 @@ export default function PipelinePanel({ totals }: { totals: Totals }) {
         />
       </div>
 
-      {!totals.gemini && (
-        <p className="mb-2 text-xs text-amber-700">GEMINI_API_KEY não configurada — a etapa de IA não vai rodar.</p>
+      {!totals.aiConfigured && (
+        <p className="mb-2 text-xs text-amber-700">Nenhuma chave de API de IA configurada — a etapa de IA não vai rodar.</p>
       )}
 
       <div className="flex flex-wrap items-end gap-2 text-xs">

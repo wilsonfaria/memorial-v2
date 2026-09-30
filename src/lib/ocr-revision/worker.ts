@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { availableExtractModels, availableModels, isGeminiConfigured, msUntilQuotaReset } from "@/lib/ocr-revision/gemini";
+import { availableExtractModels, availableModels, isAiConfigured, msUntilQuotaReset } from "@/lib/ai-providers/registry";
 import { reviseNextPage } from "@/lib/ocr-revision/revise";
 import { extractNextPage } from "@/lib/entities/extract";
 
@@ -111,7 +111,7 @@ async function loop() {
         await wait(IDLE_CHECK_MS);
         continue;
       }
-      if (!isGeminiConfigured()) {
+      if (!isAiConfigured()) {
         set({ phase: "no-key", resumeAt: null });
         await wait(IDLE_CHECK_MS);
         continue;

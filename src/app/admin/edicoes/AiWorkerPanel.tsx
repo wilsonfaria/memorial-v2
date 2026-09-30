@@ -33,7 +33,7 @@ function phaseText(phase: WorkerPhase, resumeAt: string | null): { text: string;
     case "done":
       return { text: "Nada pendente · verifica novas edições a cada 10 min", tone: "ok" };
     case "no-key":
-      return { text: "GEMINI_API_KEY não configurada no servidor", tone: "err" };
+      return { text: "Nenhuma chave de API configurada para o provedor de IA ativo", tone: "err" };
     default:
       return { text: "Desligada", tone: "idle" };
   }

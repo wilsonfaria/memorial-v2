@@ -3,7 +3,7 @@ import { indexEdition, reindexFromDatabase } from "@/lib/search/indexer";
 import { isMeiliConfigured, meiliFetch, MEILI_INDEX } from "@/lib/search/meili";
 import { revisePage } from "@/lib/ocr-revision/revise";
 import { clearPageExtraction } from "@/lib/entities/extract";
-import { DailyQuotaError, ModelBusyError, isGeminiConfigured, noRealError } from "@/lib/ocr-revision/gemini";
+import { DailyQuotaError, ModelBusyError, isAiConfigured, noRealError } from "@/lib/ai-providers/registry";
 
 /**
  * Per-edition processing pipeline, driven one short step at a time from the
@@ -111,7 +111,7 @@ export async function runPipelineStep(editionId: number, stage: PipelineStage): 
       return { ok: true, stage, done: true, detail: "enviada à busca" };
     }
 
-    if (!isGeminiConfigured()) return { ok: false, stage, detail: "GEMINI_API_KEY não configurada" };
+    if (!isAiConfigured()) return { ok: false, stage, detail: "nenhuma chave de API de IA configurada" };
     const pending = { editionId, revisedAt: null, ...noRealError("revisionError") };
     const next = await prisma.editionPage.findFirst({
       where: pending,
@@ -195,5 +195,5 @@ export async function getPipelineTotals() {
       where: { deletedAt: null, pages: { some: {}, every: { revisedAt: { not: null } } } },
     }),
   ]);
-  return { editions, noText, pages, revised, errors, fullyRevised, gemini: isGeminiConfigured() };
+  return { editions, noText, pages, revised, errors, fullyRevised, aiConfigured: isAiConfigured() };
 }
