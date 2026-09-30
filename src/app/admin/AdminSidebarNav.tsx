@@ -25,6 +25,7 @@ import {
   Trash2,
   ChevronDown,
   Contact,
+  KeyRound,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -63,6 +64,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/aparencia", icon: Palette, label: "Aparência" },
       { href: "/admin/relatorios", icon: BarChart3, label: "Relatórios" },
+      { href: "/admin/chaves", icon: KeyRound, label: "Chaves de API" },
       { href: "/admin/configuracoes", icon: Database, label: "Configurações" },
       { href: "/admin/usuarios", icon: Users, label: "Usuários" },
       { href: "/admin/lixeira", icon: Trash2, label: "Lixeira" },

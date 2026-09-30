@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { CheckCircle2, XCircle } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildTitleOrNumberFilter } from "@/lib/data";
@@ -9,7 +11,6 @@ import EditionsList from "./EditionsList";
 import SearchIndexPanel from "./SearchIndexPanel";
 import PipelinePanel from "./PipelinePanel";
 import AiWorkerPanel from "./AiWorkerPanel";
-import AiProviderPanel from "./AiProviderPanel";
 import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
 import { getPipelineStatuses, getPipelineTotals } from "@/lib/pipeline";
 import { getProviderStatuses } from "@/lib/ai-providers/registry";
@@ -91,6 +92,7 @@ export default async function AdminEditionsPage({
     getPipelineTotals(),
   ]);
   const pipeline = await getPipelineStatuses(editions.map((e) => e.id));
+  const activeProvider = getProviderStatuses().find((p) => p.active);
 
   function stageHref(key: string | null) {
     const sp = new URLSearchParams();
@@ -123,7 +125,17 @@ export default async function AdminEditionsPage({
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
       />
 
-      <AiProviderPanel providers={getProviderStatuses()} />
+      <Link
+        href="/admin/chaves"
+        className="mb-4 flex w-fit items-center gap-2 rounded-lg border border-paper-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-brand-300"
+      >
+        {activeProvider?.configured ? (
+          <CheckCircle2 size={13} className="text-green-600" />
+        ) : (
+          <XCircle size={13} className="text-red-600" />
+        )}
+        Provedor de IA ativo: {activeProvider?.label ?? "nenhum"} — gerenciar chaves
+      </Link>
       <AiWorkerPanel />
       <PipelinePanel totals={pipelineTotals} />
 
