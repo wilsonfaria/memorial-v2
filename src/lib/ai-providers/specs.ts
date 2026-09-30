@@ -68,16 +68,27 @@ export const GEMINI_SPEC: ProviderSpec = {
  * OpenAI-compatible /chat/completions shape as Gemini, so it reuses the same
  * engine untouched.
  *
- * Checked against the real account on 2026-09-30 (GET /v1/models): no
- * image-capable model is available (just gpt-oss-120b/20b, qwen3.8-27b,
- * allam-2-7b, Whisper, Orpheus) — so `defaultModels` (the transcription
- * list) is empty on purpose and `supportsVision` is false. Only text-only
- * extraction (GROQ_EXTRACT_MODELS) is realistic today. A same-day quality
- * probe of gpt-oss-120b on the real extraction prompt returned valid JSON
- * but with worse title/body segmentation than Gemini (titles absorbing body
- * text, one article split mid-sentence) — treat as unverified until it's
- * been run through the same CER/WER gold-set process as the vision models
- * (see /admin/edicoes/qualidade) before relying on it.
+ * Checked against the real account on 2026-09-30 (GET /v1/models, then a real
+ * image request per candidate): qwen/qwen3.8-27b genuinely reads images —
+ * sent it a real archive page and it correctly transcribed the printed text
+ * ("Redator: Sérgio Firmino Pereira"), confirmed against that same page's
+ * existing extraction. meta-llama/llama-4-scout-17b-16e-instruct, despite
+ * being documented on Groq's platform, returns HTTP 404 model_not_found on
+ * this specific account — model access varies per account/tier, the
+ * /v1/models list and a real request are both worth checking before trusting
+ * any published model name. openai/gpt-oss-120b/20b, allam-2-7b are
+ * text-only; Whisper/Orpheus are audio.
+ *
+ * GROQ_EXTRACT_MODELS still defaults to gpt-oss-120b for the text-only
+ * extraction step — a same-day quality probe on the real extraction prompt
+ * returned valid JSON but with worse title/body segmentation than Gemini
+ * (titles absorbing body text, one article split mid-sentence); treat as
+ * unverified until it's been run through the same CER/WER gold-set process
+ * as the vision models (see /admin/edicoes/qualidade) before relying on it.
+ * qwen/qwen3.8-27b hasn't been quality-tested for transcription yet either
+ * (only confirmed to genuinely see the image, not judged for fidelity to
+ * period spelling the way the Gemini models were in scripts/ocr-pilot.ts) —
+ * run that same pilot before pointing the real pipeline at it.
  *
  * Model IDs and free-tier limits move fast on Groq's console — re-check
  * with `GET https://api.groq.com/openai/v1/models` if this list goes stale.
@@ -90,8 +101,8 @@ export const GROQ_SPEC: ProviderSpec = {
   label: "Groq",
   baseUrl: "https://api.groq.com/openai/v1",
   apiKeyEnvVar: "GROQ_API_KEY",
-  supportsVision: false,
-  defaultModels: (process.env.GROQ_MODELS ?? "")
+  supportsVision: true,
+  defaultModels: (process.env.GROQ_MODELS ?? "qwen/qwen3.8-27b")
     .split(",")
     .map((m) => m.trim())
     .filter(Boolean),

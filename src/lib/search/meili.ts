@@ -4,11 +4,21 @@
  * collapses results to one hit per edition (its best-matching page).
  *
  * Configured by MEILI_URL + MEILI_KEY (server-side only — the browser never
- * talks to Meilisearch). When they're unset, callers fall back to MariaDB
- * FULLTEXT (see search.ts).
+ * talks to Meilisearch), or by the runtime override saved from the admin
+ * vault (/admin/chaves) — see meili-config.ts. When neither is set, callers
+ * fall back to MariaDB FULLTEXT (see search.ts).
  */
+import { readMeiliConfig } from "@/lib/meili-config";
 
 export const MEILI_INDEX = process.env.MEILI_INDEX ?? "edition_pages";
+
+function resolveMeiliUrl(): string | undefined {
+  return readMeiliConfig()?.url || process.env.MEILI_URL;
+}
+
+function resolveMeiliKey(): string | undefined {
+  return readMeiliConfig()?.key || process.env.MEILI_KEY;
+}
 
 export type MeiliPageDoc = {
   id: string; // `${editionId}-${page}`
@@ -41,16 +51,16 @@ const SETTINGS = {
 };
 
 export function isMeiliConfigured(): boolean {
-  return Boolean(process.env.MEILI_URL && process.env.MEILI_KEY);
+  return Boolean(resolveMeiliUrl() && resolveMeiliKey());
 }
 
 /**
- * MEILI_URL without trailing slash. A value typed without a scheme
+ * Resolved URL without trailing slash. A value typed without a scheme
  * ("meili-host:7700") would make fetch fail with "unknown scheme", so plain
  * http:// is assumed — the usual case for Coolify's internal service URL.
  */
 function meiliBaseUrl(): string {
-  const raw = process.env.MEILI_URL!.trim().replace(/\/+$/, "");
+  const raw = resolveMeiliUrl()!.trim().replace(/\/+$/, "");
   return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
 }
 
@@ -63,7 +73,7 @@ export async function meiliFetch<T = unknown>(
     ...rest,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.MEILI_KEY}`,
+      Authorization: `Bearer ${resolveMeiliKey()}`,
       ...rest.headers,
     },
     signal: AbortSignal.timeout(timeoutMs),
@@ -156,7 +166,7 @@ export type MeiliStatus =
  */
 export async function getMeiliStatus(): Promise<MeiliStatus> {
   const base = meiliBaseUrl();
-  const headers = { Authorization: `Bearer ${process.env.MEILI_KEY}` };
+  const headers = { Authorization: `Bearer ${resolveMeiliKey()}` };
   try {
     const health = await fetch(`${base}/health`, { signal: AbortSignal.timeout(3000), cache: "no-store" });
     if (!health.ok) return { state: "unreachable", detail: `${base}/health respondeu ${health.status}` };
@@ -181,4 +191,28 @@ export async function getMeiliStatus(): Promise<MeiliStatus> {
   } catch (err) {
     return { state: "error", detail: (err as Error).message };
   }
+}
+
+/** Tries a URL/key pair without touching the saved config — used to validate before saving it. */
+export async function testMeiliCredentials(url: string, key: string): Promise<{ ok: boolean; detail: string }> {
+  const base = url.trim().replace(/\/+$/, "");
+  const withScheme = /^https?:\/\//i.test(base) ? base : `http://${base}`;
+  try {
+    const health = await fetch(`${withScheme}/health`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
+    if (!health.ok) return { ok: false, detail: `${withScheme}/health respondeu HTTP ${health.status}` };
+  } catch (err) {
+    return { ok: false, detail: `Não foi possível alcançar ${withScheme}: ${(err as Error).message}` };
+  }
+  try {
+    const res = await fetch(`${withScheme}/keys`, {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5000),
+      cache: "no-store",
+    });
+    if (res.status === 401 || res.status === 403) return { ok: false, detail: "Servidor alcançado, mas a chave foi rejeitada." };
+    if (!res.ok) return { ok: false, detail: `/keys respondeu HTTP ${res.status}` };
+  } catch (err) {
+    return { ok: false, detail: (err as Error).message };
+  }
+  return { ok: true, detail: "Servidor alcançado e chave aceita." };
 }
