@@ -898,3 +898,13 @@ html[data-font-scale="xl"] {
   margin: 0;
   padding: 0;
 }
+
+/* Gallery slideshow: each photo fades in as it replaces the previous one. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

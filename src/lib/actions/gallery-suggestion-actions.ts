@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import { validateCaptionSuggestion } from "@/lib/gallery-suggestions";
 
 export type SuggestionActionState = { error?: string; success?: string } | undefined;
 
@@ -12,20 +14,38 @@ export async function suggestPhotoCaptionAction(
   _prevState: SuggestionActionState,
   formData: FormData
 ): Promise<SuggestionActionState> {
+  // Honeypot: a real visitor never fills this hidden field; a bot filling every field will.
+  if (String(formData.get("website") ?? "").trim()) {
+    return { success: "Obrigado! Sua sugestão foi enviada para revisão." };
+  }
+  const ip = await getClientIp();
+  if (!consumeRateLimit(`caption-suggestion:${ip}`, 10, 10 * 60 * 1000)) {
+    return { error: "Muitas sugestões enviadas em pouco tempo. Tente novamente mais tarde." };
+  }
+
   const photoId = Number(formData.get("photoId"));
-  const suggestion = String(formData.get("suggestion") ?? "").trim();
-  const submitterName = String(formData.get("submitterName") ?? "").trim();
+  const submitterName = String(formData.get("submitterName") ?? "").replace(/\s+/g, " ").trim().slice(0, 100);
+  if (!Number.isInteger(photoId) || photoId <= 0) return { error: "Foto inválida." };
+  const valid = validateCaptionSuggestion(String(formData.get("suggestion") ?? ""));
+  if ("error" in valid) return { error: valid.error };
 
-  if (!photoId) return { error: "Foto inválida." };
-  if (suggestion.length < 3) return { error: "Escreva um pouco mais sobre a foto." };
-  if (suggestion.length > 500) return { error: "Texto muito longo (máximo 500 caracteres)." };
-
-  const photo = await prisma.galleryPhoto.findUnique({ where: { id: photoId } });
+  // Only photos the public can actually see.
+  const photo = await prisma.galleryPhoto.findFirst({
+    where: { id: photoId, album: { published: true, deletedAt: null } },
+    select: { id: true },
+  });
   if (!photo) return { error: "Foto não encontrada." };
 
-  await prisma.photoCaptionSuggestion.create({
-    data: { photoId, suggestion, submitterName: submitterName || null },
+  const duplicate = await prisma.photoCaptionSuggestion.findFirst({
+    where: { photoId, suggestion: valid.suggestion, status: "pending" },
+    select: { id: true },
   });
+  if (!duplicate) {
+    await prisma.photoCaptionSuggestion.create({
+      data: { photoId, suggestion: valid.suggestion, submitterName: submitterName || null },
+    });
+    revalidatePath("/admin/galeria/sugestoes");
+  }
 
   return { success: "Obrigado! Sua sugestão foi enviada para revisão." };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
-import GalleryPhotoTile from "@/components/GalleryPhotoTile";
+import AlbumGallery from "@/components/gallery/AlbumGallery";
 import { getPublishedAlbumBySlug } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -47,11 +47,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ slug: st
         {album.photos.length === 0 ? (
           <p className="py-10 text-center text-sm text-slate-400">Este álbum ainda não tem fotos.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
-            {album.photos.map((photo) => (
-              <GalleryPhotoTile key={photo.id} photo={photo} />
-            ))}
-          </div>
+          <AlbumGallery photos={album.photos} albumTitle={album.title} />
         )}
       </div>
     </>
