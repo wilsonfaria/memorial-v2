@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { entityKey } from "@/lib/entities/normalize";
-import { PRIVATE_KINDS, publicMentions } from "@/lib/entities/kinds";
+import { ARTICLE_KINDS, PRIVATE_KINDS, isPrivateKind, publicMentions, type ArticleKind } from "@/lib/entities/kinds";
 import { nameMasker } from "@/lib/entities/mask";
 
 /**
@@ -101,6 +101,61 @@ export async function getEntity(kind: EntityKind, slug: string) {
     roles: count(rows.map((r) => r.role?.toLowerCase() ?? null)).slice(0, 6),
     related: related.map((r) => ({ name: r.name, slug: r.slug, kind: r.kind as EntityKind, n: Number(r.n) })),
   };
+}
+
+/**
+ * Public reads for /materias: newspaper items grouped by kind (notícia,
+ * nascimento, anúncio…). Sensitive kinds (PRIVATE_KINDS) never show up here,
+ * same rule as the person/place pages.
+ */
+
+const ARTICLE_PAGE_SIZE = 30;
+
+export async function listKindCounts(): Promise<{ kind: ArticleKind; count: number }[]> {
+  const rows = await prisma.article.groupBy({
+    by: ["kind"],
+    where: { kind: { notIn: [...PRIVATE_KINDS] }, edition: { deletedAt: null } },
+    _count: { _all: true },
+  });
+  const counts = new Map(rows.map((r) => [r.kind, r._count._all]));
+  return ARTICLE_KINDS.filter((k) => !isPrivateKind(k))
+    .map((kind) => ({ kind, count: counts.get(kind) ?? 0 }))
+    .filter((k) => k.count > 0)
+    .sort((a, b) => b.count - a.count);
+}
+
+export type ArticleListRow = {
+  id: number;
+  title: string;
+  summary: string;
+  page: number;
+  edition: { id: number; title: string; editionNumber: number | null; publishedAt: Date };
+};
+
+export async function listArticlesByKind(kind: string, page: number) {
+  if (!(ARTICLE_KINDS as readonly string[]).includes(kind) || isPrivateKind(kind)) return null;
+
+  const where: Prisma.ArticleWhereInput = { kind, edition: { deletedAt: null } };
+  const [total, items] = await Promise.all([
+    prisma.article.count({ where }),
+    prisma.article.findMany({
+      where,
+      orderBy: { edition: { publishedAt: "desc" } },
+      skip: (page - 1) * ARTICLE_PAGE_SIZE,
+      take: ARTICLE_PAGE_SIZE,
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        page: true,
+        edition: { select: { id: true, title: true, editionNumber: true, publishedAt: true } },
+      },
+    }),
+  ]);
+
+  const mask = await hiddenNamesMasker();
+  const rows: ArticleListRow[] = items.map((a) => ({ ...a, title: mask(a.title), summary: mask(a.summary) }));
+  return { kind: kind as ArticleKind, total, pages: Math.max(1, Math.ceil(total / ARTICLE_PAGE_SIZE)), items: rows };
 }
 
 /** Masks every hidden entity's name and printed spellings ("[nome ocultado]"). */
