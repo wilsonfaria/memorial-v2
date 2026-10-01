@@ -26,7 +26,6 @@ import {
   ChevronDown,
   Contact,
   KeyRound,
-  Tags,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -45,7 +44,6 @@ const NAV_GROUPS = [
       { href: "/admin/cronicas", icon: BookOpen, label: "Crônicas" },
       { href: "/admin/personagens", icon: Users2, label: "Personagens" },
       { href: "/admin/pessoas", icon: Contact, label: "Pessoas e lugares" },
-      { href: "/admin/materias", icon: Tags, label: "Matérias por tipo" },
       { href: "/admin/galeria", icon: Images, label: "Galeria" },
       { href: "/admin/linha-do-tempo", icon: History, label: "Linha do Tempo" },
       { href: "/admin/projetos", icon: FolderKanban, label: "Projetos" },

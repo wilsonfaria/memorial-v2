@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import ArticleKindRows from "@/components/articles/ArticleKindRows";
 import { KIND_LABEL, type ArticleKind } from "@/lib/entities/kinds";
@@ -8,7 +7,7 @@ import { listArticlesByKind } from "@/lib/entities/queries";
 /** Public listing of every item of one kind (/materias/[kind]), newest first. */
 export default async function ArticleKindList({ kind, page }: { kind: string; page: number }) {
   const data = await listArticlesByKind(kind, page);
-  if (!data) notFound();
+  if (!data) return null;
   const label = KIND_LABEL[kind as ArticleKind];
   const href = (p: number) => `/materias/${kind}${p > 1 ? `?p=${p}` : ""}`;
 
