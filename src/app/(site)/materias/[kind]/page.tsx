@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import ArticleKindList from "@/components/articles/ArticleKindList";
-import { ARTICLE_KINDS, KIND_LABEL, isPrivateKind, type ArticleKind } from "@/lib/entities/kinds";
+import { ARTICLE_KINDS, KIND_LABEL, type ArticleKind } from "@/lib/entities/kinds";
 
 export const dynamic = "force-dynamic";
 
+// Just a valid kind name — whether it's actually public (not LGPD-locked nor
+// admin-hidden) is decided by listArticlesByKind, which 404s the page itself.
 function labelFor(kind: string) {
-  if (!(ARTICLE_KINDS as readonly string[]).includes(kind) || isPrivateKind(kind)) return null;
+  if (!(ARTICLE_KINDS as readonly string[]).includes(kind)) return null;
   return KIND_LABEL[kind as ArticleKind];
 }
 
@@ -25,7 +26,6 @@ export default async function Page({
   searchParams: Promise<{ p?: string }>;
 }) {
   const { kind } = await params;
-  if (!labelFor(kind)) notFound();
   const { p } = await searchParams;
   return <ArticleKindList kind={kind} page={Math.max(1, Number(p) || 1)} />;
 }

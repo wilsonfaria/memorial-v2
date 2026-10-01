@@ -667,3 +667,14 @@ model EntityMention {
   @@index([articleId])
   @@map("entity_mentions")
 }
+
+/// An article kind an admin chose to hide from the public site (on top of the
+/// fixed LGPD kinds in PRIVATE_KINDS, which can't be un-hidden). Presence of a
+/// row = hidden. The transcription/PDF and full-text search are untouched —
+/// only /materias and the mentions shown on person/place pages are filtered.
+model HiddenArticleKind {
+  kind     String   @id @db.VarChar(20)
+  hiddenAt DateTime @default(now())
+
+  @@map("hidden_article_kinds")
+}

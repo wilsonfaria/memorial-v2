@@ -1,7 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { entityKey } from "@/lib/entities/normalize";
-import { ARTICLE_KINDS, PRIVATE_KINDS, isPrivateKind, publicMentions, type ArticleKind } from "@/lib/entities/kinds";
+import { ARTICLE_KINDS, type ArticleKind } from "@/lib/entities/kinds";
+import { getHiddenKinds } from "@/lib/entities/visibility";
 import { nameMasker } from "@/lib/entities/mask";
 
 /**
@@ -66,8 +67,9 @@ export async function getEntity(kind: EntityKind, slug: string) {
       },
     },
   });
-  const mask = await hiddenNamesMasker();
-  const rows: EntityMentionRow[] = publicMentions(mentions)
+  const [mask, hiddenKinds] = await Promise.all([hiddenNamesMasker(), getHiddenKinds()]);
+  const rows: EntityMentionRow[] = mentions
+    .filter((m) => !hiddenKinds.has(m.article.kind))
     .map(({ article: { edition, title, summary, ...article }, ...m }) => ({
       ...m,
       article: { ...article, title: mask(title), summary: mask(summary) },
@@ -81,7 +83,7 @@ export async function getEntity(kind: EntityKind, slug: string) {
     FROM entity_mentions m1
     JOIN entity_mentions m2 ON m2.articleId = m1.articleId AND m2.entityId <> m1.entityId
     JOIN entities e ON e.id = m2.entityId AND e.hidden = FALSE
-    JOIN articles a ON a.id = m1.articleId AND a.kind NOT IN (${Prisma.join(PRIVATE_KINDS)})
+    JOIN articles a ON a.id = m1.articleId AND a.kind NOT IN (${Prisma.join([...hiddenKinds])})
     JOIN editions ed ON ed.id = a.editionId AND ed.deletedAt IS NULL
     WHERE m1.entityId = ${entity.id}
     GROUP BY e.id, e.name, e.slug, e.kind
@@ -105,20 +107,22 @@ export async function getEntity(kind: EntityKind, slug: string) {
 
 /**
  * Public reads for /materias: newspaper items grouped by kind (notícia,
- * nascimento, anúncio…). Sensitive kinds (PRIVATE_KINDS) never show up here,
- * same rule as the person/place pages.
+ * nascimento, anúncio…). Sensitive kinds (PRIVATE_KINDS, fixed) plus whatever
+ * an admin additionally hid at /admin/materias never show up here, same rule
+ * as the person/place pages.
  */
 
 const ARTICLE_PAGE_SIZE = 30;
 
 export async function listKindCounts(): Promise<{ kind: ArticleKind; count: number }[]> {
+  const hidden = await getHiddenKinds();
   const rows = await prisma.article.groupBy({
     by: ["kind"],
-    where: { kind: { notIn: [...PRIVATE_KINDS] }, edition: { deletedAt: null } },
+    where: { kind: { notIn: [...hidden] }, edition: { deletedAt: null } },
     _count: { _all: true },
   });
   const counts = new Map(rows.map((r) => [r.kind, r._count._all]));
-  return ARTICLE_KINDS.filter((k) => !isPrivateKind(k))
+  return ARTICLE_KINDS.filter((k) => !hidden.has(k))
     .map((kind) => ({ kind, count: counts.get(kind) ?? 0 }))
     .filter((k) => k.count > 0)
     .sort((a, b) => b.count - a.count);
@@ -133,7 +137,9 @@ export type ArticleListRow = {
 };
 
 export async function listArticlesByKind(kind: string, page: number) {
-  if (!(ARTICLE_KINDS as readonly string[]).includes(kind) || isPrivateKind(kind)) return null;
+  if (!(ARTICLE_KINDS as readonly string[]).includes(kind)) return null;
+  const hidden = await getHiddenKinds();
+  if (hidden.has(kind)) return null;
 
   const where: Prisma.ArticleWhereInput = { kind, edition: { deletedAt: null } };
   const [total, items] = await Promise.all([
