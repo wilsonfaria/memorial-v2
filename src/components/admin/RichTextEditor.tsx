@@ -12,6 +12,7 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { TextAlignExtension, type TextAlignment } from "./TextAlignExtension";
 import { createLowlight, common } from "lowlight";
 import {
   Bold,
@@ -30,6 +31,10 @@ import {
   Undo,
   Redo,
   Minus,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from "lucide-react";
 
 const lowlight = createLowlight(common);
@@ -62,13 +67,14 @@ export default function RichTextEditor({
       TableHeader,
       TableCell,
       CodeBlockLowlight.configure({ lowlight }),
+      TextAlignExtension,
     ],
     content: defaultValue ?? "",
     onUpdate: ({ editor }) => setHtml(editor.getHTML()),
     editorProps: {
       attributes: {
         class:
-          "min-h-[var(--editor-min-h)] px-3 py-2 text-sm text-slate-700 outline-none [&_p]:my-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:max-w-full [&_img]:rounded-lg [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-brand-200 [&_th]:border [&_th]:border-brand-200 [&_th]:bg-brand-50 [&_td]:px-2 [&_th]:px-2 [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-100 [&_pre]:overflow-x-auto [&_code]:text-[13px] [&_blockquote]:border-l-2 [&_blockquote]:border-brand-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-slate-500",
+          "rich-text-surface min-h-[var(--editor-min-h)] px-4 py-3 text-sm leading-relaxed text-slate-700 outline-none [&_p]:my-2 [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-3 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:max-w-full [&_img]:rounded-lg [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-brand-200 [&_th]:border [&_th]:border-brand-200 [&_th]:bg-brand-50 [&_td]:px-2 [&_th]:px-2 [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-100 [&_pre]:overflow-x-auto [&_code]:text-[13px] [&_blockquote]:border-l-2 [&_blockquote]:border-brand-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-slate-500",
       },
     },
   });
@@ -113,7 +119,7 @@ export default function RichTextEditor({
   }
 
   return (
-    <div className="rounded-lg border border-brand-200 bg-white" style={{ "--editor-min-h": `${minHeight}px` } as React.CSSProperties}>
+    <div className="overflow-hidden rounded-xl border border-brand-200 bg-white shadow-sm focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100" style={{ "--editor-min-h": `${minHeight}px` } as React.CSSProperties}>
       <Toolbar editor={editor} onPickImage={() => fileInputRef.current?.click()} uploading={uploading} />
       <input
         ref={fileInputRef}
@@ -142,7 +148,7 @@ function Toolbar({
   uploading: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b border-brand-100 p-1.5">
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-brand-100 bg-brand-50/80 p-2 backdrop-blur-sm" role="toolbar" aria-label="Formatação do texto">
       <ToolbarButton title="Negrito" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
         <Bold size={14} />
       </ToolbarButton>
@@ -155,6 +161,24 @@ function Toolbar({
       <ToolbarButton title="Tachado" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}>
         <Strikethrough size={14} />
       </ToolbarButton>
+
+      <Divider />
+
+      {([
+        ["left", "Alinhar à esquerda", AlignLeft],
+        ["center", "Centralizar", AlignCenter],
+        ["right", "Alinhar à direita", AlignRight],
+        ["justify", "Justificar", AlignJustify],
+      ] as const).map(([alignment, title, Icon]) => (
+        <ToolbarButton
+          key={alignment}
+          title={title}
+          active={editor.isActive({ textAlign: alignment })}
+          onClick={() => editor.chain().focus().setTextAlign(alignment as TextAlignment).run()}
+        >
+          <Icon size={15} />
+        </ToolbarButton>
+      ))}
 
       <Divider />
 
@@ -260,8 +284,10 @@ function ToolbarButton({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-40 ${
-        active ? "bg-brand-100 text-brand-800" : "text-slate-500 hover:bg-brand-50 hover:text-brand-700"
+      aria-label={title}
+      aria-pressed={active ?? undefined}
+      className={`flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:opacity-40 ${
+        active ? "border-brand-200 bg-white text-brand-800 shadow-sm" : "border-transparent text-slate-500 hover:border-brand-100 hover:bg-white hover:text-brand-700"
       }`}
     >
       {children}

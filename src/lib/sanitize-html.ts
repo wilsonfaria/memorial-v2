@@ -11,7 +11,7 @@ const ALLOWED_TAGS = [
   "hr", "span",
 ];
 
-const ALLOWED_ATTR = ["href", "target", "rel", "src", "alt", "class", "colspan", "rowspan"];
+const ALLOWED_ATTR = ["href", "target", "rel", "src", "alt", "class", "colspan", "rowspan", "data-text-align"];
 
 /** Sanitizes admin-authored HTML (CMS page bodies) down to a small, safe allowlist. */
 export function sanitizePageHtml(html: string): string {

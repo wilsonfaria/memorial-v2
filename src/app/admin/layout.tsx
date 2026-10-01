@@ -10,13 +10,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="flex min-h-screen bg-brand-50">
+    <div className="flex min-h-screen min-w-0 overflow-x-clip bg-brand-50">
       <AdminSidebar username={session.username} />
 
-      {/* Single measure for every admin screen: content stays centred and capped
-          so fields never stretch edge-to-edge on wide monitors. */}
-      <main className="min-w-0 flex-1 px-6 py-8 lg:px-10">
-        <div className="mx-auto w-full max-w-6xl">{children}</div>
+      <main className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-7 lg:px-8 2xl:px-10">
+        <div className="w-full min-w-0">{children}</div>
       </main>
     </div>
   );
