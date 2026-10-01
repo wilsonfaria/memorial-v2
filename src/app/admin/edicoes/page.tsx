@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildTitleOrNumberFilter } from "@/lib/data";
@@ -14,6 +14,7 @@ import AiWorkerPanel from "./AiWorkerPanel";
 import { getSearchIndexStatusAction } from "@/lib/actions/edition-actions";
 import { getPipelineStatuses, getPipelineTotals } from "@/lib/pipeline";
 import { getProviderStatuses } from "@/lib/ai-providers/registry";
+import { countPendingTranscriptionSuggestions } from "@/lib/transcription-suggestions";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function AdminEditionsPage({
   }
   if (stage) Object.assign(where, stage.where);
 
-  const [newspapers, distinctYears, total, editions, searchStatus, pipelineTotals] = await Promise.all([
+  const [newspapers, distinctYears, total, editions, searchStatus, pipelineTotals, pendingSuggestions] = await Promise.all([
     prisma.newspaper.findMany({
       orderBy: { id: "asc" },
       include: {
@@ -90,6 +91,7 @@ export default async function AdminEditionsPage({
     }),
     getSearchIndexStatusAction(),
     getPipelineTotals(),
+    countPendingTranscriptionSuggestions(),
   ]);
   const pipeline = await getPipelineStatuses(editions.map((e) => e.id));
   const activeProvider = getProviderStatuses().find((p) => p.active);
@@ -123,6 +125,20 @@ export default async function AdminEditionsPage({
       <PageHeader
         title="Edições"
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
+        action={
+          <Link
+            href="/admin/edicoes/sugestoes"
+            className="flex items-center gap-1.5 rounded-lg border border-paper-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-brand-300"
+          >
+            <MessageCircle size={13} />
+            Sugestões de leitura
+            {pendingSuggestions > 0 && (
+              <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                {pendingSuggestions}
+              </span>
+            )}
+          </Link>
+        }
       />
 
       <Link

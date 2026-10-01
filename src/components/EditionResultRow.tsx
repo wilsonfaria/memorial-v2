@@ -3,7 +3,7 @@
 import { Newspaper } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
 import { formatDate, formatFileSize } from "@/lib/format";
-import { splitSnippet } from "@/lib/search/highlight";
+import { snippetTerms, splitSnippet } from "@/lib/search/highlight";
 import type { EditionSummary } from "@/components/EditionCard";
 
 type EditionResultSummary = EditionSummary & {
@@ -15,7 +15,9 @@ type EditionResultSummary = EditionSummary & {
 
 export default function EditionResultRow({ edition }: { edition: EditionResultSummary }) {
   const { openEdition } = useEditionModal();
-  const open = () => openEdition(edition.id, edition.matchPage);
+  // The words the search matched on that page, to highlight them on the page image.
+  const open = () =>
+    openEdition(edition.id, edition.matchPage, edition.matchSnippet ? snippetTerms(edition.matchSnippet) : undefined);
 
   return (
     <div className="flex flex-col gap-1 border-b border-paper-200 py-1.5 first:pt-0 last:border-b-0">

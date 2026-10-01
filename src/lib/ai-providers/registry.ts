@@ -34,6 +34,14 @@ function activeSpec(): ProviderSpec {
   return specFor(getActiveProviderId());
 }
 
+/**
+ * Semantic search always embeds with Gemini, whatever provider transcribes
+ * (Groq has no embedding model) — so it needs the Gemini key specifically.
+ */
+export function geminiApiKey(): string | undefined {
+  return resolveApiKey(GEMINI_SPEC);
+}
+
 export function isAiConfigured(): boolean {
   const spec = activeSpec();
   return Boolean(resolveApiKey(spec));

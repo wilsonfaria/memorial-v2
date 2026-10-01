@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Download, X, ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut, RotateCcw, FileText } from "lucide-react";
 import { useEditionModal } from "@/context/EditionModalContext";
+import { markTextItemHtml } from "@/lib/search/highlight";
 import { formatDateLong, formatFileSize } from "@/lib/format";
 import TranscriptionPanel from "@/components/TranscriptionPanel";
 
@@ -20,7 +21,18 @@ type EditionDetail = {
 };
 
 export default function EditionModal() {
-  const { openEditionId, initialPage, closeEdition } = useEditionModal();
+  const { openEditionId, initialPage, highlightTerms, closeEdition } = useEditionModal();
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const highlighting = highlightTerms.length > 0;
+  // Positions come from the PDF's own text layer (every page in the archive
+  // has one), so the searched words can be marked right on the scan.
+  const renderText = useCallback(
+    ({ str }: { str: string }) => markTextItemHtml(str, highlightTerms),
+    [highlightTerms]
+  );
+  const scrollToFirstMark = useCallback(() => {
+    viewerRef.current?.querySelector(".textLayer mark")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
   const [edition, setEdition] = useState<EditionDetail | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -153,6 +165,7 @@ export default function EditionModal() {
         <div className="flex min-h-0 flex-1">
         {/* On phones the transcript replaces the page image; side by side from md up. */}
         <div
+          ref={viewerRef}
           className={`flex-1 flex-col items-center overflow-auto bg-slate-100 py-6 ${showTranscript ? "hidden md:flex" : "flex"}`}
         >
           <Document
@@ -184,7 +197,9 @@ export default function EditionModal() {
               pageNumber={pageNumber}
               width={BASE_WIDTH * zoom}
               renderAnnotationLayer={false}
-              renderTextLayer={false}
+              renderTextLayer={highlighting}
+              customTextRenderer={highlighting ? renderText : undefined}
+              onRenderTextLayerSuccess={highlighting ? scrollToFirstMark : undefined}
               className="shadow-lg"
             />
           </Document>

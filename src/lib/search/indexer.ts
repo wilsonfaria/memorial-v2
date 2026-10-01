@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
-import { reflowText } from "@/lib/ocr-revision/reflow";
+import { EMBED_DIMS, EMBED_MODEL, MEILI_EMBEDDER } from "@/lib/search/embeddings";
+import { pageSearchText, textHash, unpackVectors } from "@/lib/search/passages";
 import { absolutePdfPath } from "@/lib/storage";
 import { extractEditionPages, type ExtractionResult } from "@/lib/ocr";
 import {
@@ -32,24 +33,41 @@ type EditionForDocs = {
 
 type PageText = { page: number; text: string; revisedText: string | null };
 
-function toDocs(edition: EditionForDocs, pages: PageText[]): MeiliPageDoc[] {
+type PageVectors = { page: number; textHash: string; model: string; vectors: Uint8Array };
+
+/**
+ * The page's stored passage vectors — only when they were made from exactly
+ * the text being indexed; stale ones (text changed, not re-embedded yet) are
+ * left out rather than matching the wrong text. null = no semantic vectors.
+ */
+function vectorsFor(text: string, stored: PageVectors | undefined): number[][] | null {
+  if (!stored || stored.model !== EMBED_MODEL || stored.textHash !== textHash(text)) return null;
+  const vectors = unpackVectors(stored.vectors, EMBED_DIMS);
+  return vectors.length > 0 ? vectors : null;
+}
+
+function toDocs(edition: EditionForDocs, pages: PageText[], embeddings: PageVectors[] = []): MeiliPageDoc[] {
   const date = edition.publishedAt.toISOString().slice(0, 10);
-  return pages.map((p) => ({
-    id: `${edition.id}-${p.page}`,
-    editionId: edition.id,
-    page: p.page,
-    // AI transcription when there is one, else the OCR (the OCR stays in the
-    // database). reflowText rejoins words the AI split across column lines.
-    text: p.revisedText ? reflowText(p.revisedText) : p.text,
-    title: edition.title,
-    editionNumber: edition.editionNumber,
-    date,
-    timestamp: Math.floor(edition.publishedAt.getTime() / 1000),
-    decade: edition.month.year.decade.startYear,
-    year: edition.month.year.year,
-    month: edition.month.month,
-    day: edition.publishedAt.getUTCDate(),
-  }));
+  const byPage = new Map(embeddings.map((e) => [e.page, e]));
+  return pages.map((p) => {
+    // AI transcription when there is one, else the OCR (the OCR stays in the database).
+    const text = pageSearchText(p);
+    return {
+      id: `${edition.id}-${p.page}`,
+      editionId: edition.id,
+      page: p.page,
+      text,
+      title: edition.title,
+      editionNumber: edition.editionNumber,
+      date,
+      timestamp: Math.floor(edition.publishedAt.getTime() / 1000),
+      decade: edition.month.year.decade.startYear,
+      year: edition.month.year.year,
+      month: edition.month.month,
+      day: edition.publishedAt.getUTCDate(),
+      _vectors: { [MEILI_EMBEDDER]: vectorsFor(text, byPage.get(p.page)) },
+    };
+  });
 }
 
 /** Replaces the edition's documents in Meilisearch with what's in edition_pages. */
@@ -60,11 +78,19 @@ async function pushToMeili(editions: EditionForDocs[], wait = false) {
     where: { editionId: { in: ids } },
     select: { editionId: true, page: true, text: true, revisedText: true },
   });
+  const embeddings = await prisma.pageEmbedding.findMany({
+    where: { editionId: { in: ids } },
+    select: { editionId: true, page: true, textHash: true, model: true, vectors: true },
+  });
   const byEdition = new Map<number, PageText[]>();
   for (const p of pages) byEdition.set(p.editionId, [...(byEdition.get(p.editionId) ?? []), p]);
+  const vectorsByEdition = new Map<number, PageVectors[]>();
+  for (const e of embeddings) vectorsByEdition.set(e.editionId, [...(vectorsByEdition.get(e.editionId) ?? []), e]);
 
   const deleteTask = await deleteEditionDocuments(ids);
-  const docs = editions.filter((e) => !e.deletedAt).flatMap((e) => toDocs(e, byEdition.get(e.id) ?? []));
+  const docs = editions
+    .filter((e) => !e.deletedAt)
+    .flatMap((e) => toDocs(e, byEdition.get(e.id) ?? [], vectorsByEdition.get(e.id)));
   const addTask = await upsertDocuments(docs);
   if (wait) {
     if (deleteTask != null) await waitForTask(deleteTask);

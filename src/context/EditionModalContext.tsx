@@ -6,20 +6,25 @@ type EditionModalContextValue = {
   openEditionId: number | null;
   /** Page the viewer should start on (1-based) — e.g. the page a text search matched. */
   initialPage: number;
-  openEdition: (id: number, page?: number) => void;
+  /** Words to highlight on the page image (folded — see lib/search/highlight). */
+  highlightTerms: string[];
+  openEdition: (id: number, page?: number, highlightTerms?: string[]) => void;
   closeEdition: () => void;
 };
+
+const NO_TERMS: string[] = [];
 
 const EditionModalContext = createContext<EditionModalContextValue | null>(null);
 
 export function EditionModalProvider({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState<{ id: number; page: number } | null>(null);
+  const [open, setOpen] = useState<{ id: number; page: number; terms: string[] } | null>(null);
 
   const value = useMemo(
     () => ({
       openEditionId: open?.id ?? null,
       initialPage: open?.page ?? 1,
-      openEdition: (id: number, page = 1) => setOpen({ id, page: Math.max(1, page) }),
+      highlightTerms: open?.terms ?? NO_TERMS,
+      openEdition: (id: number, page = 1, terms: string[] = NO_TERMS) => setOpen({ id, page: Math.max(1, page), terms }),
       closeEdition: () => setOpen(null),
     }),
     [open]

@@ -9,6 +9,7 @@
  * fall back to MariaDB FULLTEXT (see search.ts).
  */
 import { readMeiliConfig } from "@/lib/meili-config";
+import { EMBED_DIMS, MEILI_EMBEDDER } from "@/lib/search/embeddings";
 
 export const MEILI_INDEX = process.env.MEILI_INDEX ?? "edition_pages";
 
@@ -38,6 +39,11 @@ export type MeiliPageDoc = {
   year: number;
   month: number;
   day: number;
+  /**
+   * One vector per passage of `text` (see passages.ts), computed by the app —
+   * null when the page isn't embedded yet (keyword search still finds it).
+   */
+  _vectors: Record<string, number[][] | null>;
 };
 
 const SETTINGS = {
@@ -48,6 +54,10 @@ const SETTINGS = {
   displayedAttributes: ["id", "editionId", "page", "text"],
   localizedAttributes: [{ attributePatterns: ["text", "title"], locales: ["por"] }],
   pagination: { maxTotalHits: 5000 },
+  // Vectors come from the app (embeddings.ts), never computed by Meilisearch:
+  // the app paces them against the Gemini free-tier quota and keeps a copy
+  // in page_embeddings.
+  embedders: { [MEILI_EMBEDDER]: { source: "userProvided", dimensions: EMBED_DIMS } },
 };
 
 export function isMeiliConfigured(): boolean {
@@ -101,6 +111,32 @@ export async function waitForTask(taskUid: number, timeoutMs = 60000): Promise<v
   throw new Error(`Meilisearch task ${taskUid} still pending after ${timeoutMs}ms`);
 }
 
+async function patchSettings(settings: Record<string, unknown>) {
+  const updated = await meiliFetch<Task>(`/indexes/${MEILI_INDEX}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(settings),
+  });
+  await waitForTask(updated.taskUid, 120000);
+}
+
+/** Sets `_vectors.<embedder>: null` on every document (partial update — nothing else changes). */
+async function optOutDocumentsWithoutVectors() {
+  const limit = 1000;
+  for (let offset = 0; ; offset += limit) {
+    const page = await meiliFetch<{ results: { id: string }[]; total: number }>(
+      `/indexes/${MEILI_INDEX}/documents?fields=id&limit=${limit}&offset=${offset}`
+    );
+    if (page.results.length === 0) return;
+    const task = await meiliFetch<Task>(`/indexes/${MEILI_INDEX}/documents`, {
+      method: "PUT",
+      body: JSON.stringify(page.results.map(({ id }) => ({ id, _vectors: { [MEILI_EMBEDDER]: null } }))),
+      timeoutMs: 60000,
+    });
+    await waitForTask(task.taskUid, 120000);
+    if (offset + limit >= page.total) return;
+  }
+}
+
 let ensured: Promise<void> | null = null;
 
 /** Creates the index (if missing) and applies its settings — once per process. */
@@ -115,11 +151,18 @@ export function ensureMeiliIndex(): Promise<void> {
       });
       await waitForTask(created.taskUid);
     }
-    const updated = await meiliFetch<Task>(`/indexes/${MEILI_INDEX}/settings`, {
-      method: "PATCH",
-      body: JSON.stringify(SETTINGS),
-    });
-    await waitForTask(updated.taskUid, 120000);
+    const { embedders, ...base } = SETTINGS;
+    await patchSettings(base);
+    try {
+      await patchSettings({ embedders });
+    } catch (err) {
+      // An index filled before semantic search existed: Meilisearch refuses a
+      // userProvided embedder while documents lack `_vectors.<embedder>`.
+      // Opt them out explicitly (the worker embeds them later), then retry.
+      if (!/no vectors provided/i.test((err as Error).message)) throw err;
+      await optOutDocumentsWithoutVectors();
+      await patchSettings({ embedders });
+    }
   })().catch((err) => {
     ensured = null; // retry next time
     throw err;

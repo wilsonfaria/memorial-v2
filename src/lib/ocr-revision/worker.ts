@@ -2,10 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { availableExtractModels, availableModels, isAiConfigured, msUntilQuotaReset } from "@/lib/ai-providers/registry";
 import { reviseNextPage } from "@/lib/ocr-revision/revise";
 import { extractNextPage } from "@/lib/entities/extract";
+import { embedNextPages, embedPaceMs } from "@/lib/search/embed-pages";
+import { isEmbeddingConfigured, isEmbeddingQuotaExhausted } from "@/lib/search/embeddings";
 
 /**
- * Background AI work: first extracts people/places/articles from pages that
- * are already transcribed (1 cheap request each), then transcribes the next
+ * Background AI work: first embeds changed pages for semantic search (one
+ * batched request for several pages), then extracts people/places/articles
+ * from pages that are already transcribed (1 cheap request each), then transcribes the next
  * pending page — every pending page, on its own,
  * inside the server process (started from src/instrumentation.ts), so the
  * archive keeps advancing with no browser open. Switched on/off and paced
@@ -30,23 +33,30 @@ export type WorkerPhase =
 
 export type WorkerState = {
   phase: WorkerPhase;
-  /** Pages transcribed / extracted / failed since the server started. */
+  /** Pages transcribed / extracted / embedded / failed since the server started. */
   revised: number;
   extracted: number;
+  embedded: number;
   failed: number;
   last: { text: string; at: string; kind: "ok" | "err" | "info" } | null;
   /** ISO time the worker will resume (quota / backoff / done). */
   resumeAt: string | null;
 };
 
-type Shared = { started: boolean; wake: () => void; state: WorkerState };
+type Shared = {
+  started: boolean;
+  wake: () => void;
+  state: WorkerState;
+  /** Embedding step sits out until then (per-minute limit, nothing pending) — the rest carries on. */
+  embedPauseUntil?: number;
+};
 
 // On globalThis: the loop runs in the instrumentation bundle, the admin
 // actions read it from the app bundle — both must see the same object.
 const shared: Shared = ((globalThis as { __memorialAiWorker?: Shared }).__memorialAiWorker ??= {
   started: false,
   wake: () => {},
-  state: { phase: "off", revised: 0, extracted: 0, failed: 0, last: null, resumeAt: null },
+  state: { phase: "off", revised: 0, extracted: 0, embedded: 0, failed: 0, last: null, resumeAt: null },
 });
 
 export function getWorkerState(): WorkerState {
@@ -100,8 +110,15 @@ async function editionName(editionId: number) {
   return e?.editionNumber != null ? `Edição nº ${e.editionNumber}` : (e?.title ?? `Edição ${editionId}`);
 }
 
+/** Waits `ms`, but no longer than until the embedding step is due again (when it has work). */
+function waitOrEmbed(ms: number, embedding: boolean): Promise<void> {
+  const untilEmbed = (shared.embedPauseUntil ?? 0) - Date.now();
+  return wait(embedding ? Math.max(1000, Math.min(ms, untilEmbed)) : ms);
+}
+
 async function loop() {
   let failsInARow = 0;
+  let embedding = false;
   for (;;) {
     try {
       const { enabled, intervalSec } = await readSettings();
@@ -111,15 +128,42 @@ async function loop() {
         await wait(IDLE_CHECK_MS);
         continue;
       }
+
+      // 0) Semantic-search vectors. Own key (always Gemini) and own quota, so
+      // it runs before the checks below and never holds up the other steps.
+      if (isEmbeddingConfigured() && !isEmbeddingQuotaExhausted() && Date.now() >= (shared.embedPauseUntil ?? 0)) {
+        set({ phase: "working", resumeAt: null });
+        const em = await embedNextPages();
+        if (em.status === "embedded" || em.status === "failed") {
+          if (em.status === "embedded") {
+            set({ embedded: (shared.state.embedded ?? 0) + em.pages });
+            note(`Busca semântica: ${em.pages} páginas (${em.passages} trechos) · faltam ${em.remaining}`, "ok");
+            // Per-minute budget counts texts, not calls: the other steps run meanwhile.
+            shared.embedPauseUntil = Date.now() + embedPaceMs(em.passages);
+          } else {
+            set({ failed: shared.state.failed + 1 });
+            note(`Busca semântica: ${em.pages} páginas falharam: ${em.error.slice(0, 160)}`, "err");
+          }
+        }
+        if (em.status === "busy") {
+          shared.embedPauseUntil = Date.now() + em.retryAfterMs;
+        } else if (em.status === "done") {
+          shared.embedPauseUntil = Date.now() + DONE_RECHECK_MS;
+        } else if (em.status === "quota") {
+          note("Cota diária de embeddings esgotada. A busca semântica continua depois que o Google renovar.", "info");
+        }
+        embedding = em.status === "embedded" || em.status === "failed" || em.status === "busy";
+      }
+
       if (!isAiConfigured()) {
         set({ phase: "no-key", resumeAt: null });
-        await wait(IDLE_CHECK_MS);
+        await waitOrEmbed(IDLE_CHECK_MS, embedding);
         continue;
       }
       if (availableModels().length === 0) {
         const ms = msUntilQuotaReset() + 5 * 60_000; // a little after the reset
         set({ phase: "quota", resumeAt: new Date(Date.now() + ms).toISOString() });
-        await wait(ms);
+        await waitOrEmbed(ms, embedding);
         continue;
       }
 
@@ -158,9 +202,9 @@ async function loop() {
       const r = await reviseNextPage();
 
       if (r.status === "done") {
-        note("Nenhuma página pendente. Tudo transcrito.");
+        if (!embedding) note("Nenhuma página pendente. Tudo transcrito.");
         set({ phase: "done", resumeAt: new Date(Date.now() + DONE_RECHECK_MS).toISOString() });
-        await wait(DONE_RECHECK_MS);
+        await waitOrEmbed(DONE_RECHECK_MS, embedding);
         continue;
       }
       if (r.status === "busy") {

@@ -459,6 +459,60 @@ model PageTextVersion {
   @@map("page_text_versions")
 }
 
+/// A visitor's reading of one "[ilegível]" in a page's AI transcription,
+/// held for admin review (see src/lib/transcription-suggestions). The marker
+/// is located by its order on the page plus the text around it, snapshotted
+/// here — so approving after the transcription changed can tell it moved.
+model TranscriptionSuggestion {
+  id            Int      @id @default(autoincrement())
+  editionId     Int
+  edition       Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  page          Int
+  /// 0-based: which "[ilegível]" of the page, in text order
+  occurrence    Int
+  /// Transcription text right before/after the marker when it was suggested
+  contextBefore String   @db.VarChar(200)
+  contextAfter  String   @db.VarChar(200)
+  suggestion    String   @db.VarChar(200)
+  submitterName String?  @db.VarChar(100)
+  /// "pending" | "approved" | "rejected"
+  status        String   @default("pending") @db.VarChar(10)
+  /// Admin username who approved/rejected
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([status])
+  @@index([editionId, page])
+  @@map("transcription_suggestions")
+}
+
+/// Semantic-search vectors of a page (see src/lib/search/embeddings.ts): the
+/// page's search text split into passages, one vector each. Kept here, not
+/// only in Meilisearch, so "Reenviar ao Meilisearch" never has to pay the
+/// embedding API again. Linked to the edition, not the page row: re-extracting
+/// a PDF recreates the page rows, and an unchanged text (same textHash) is
+/// then reused instead of re-embedded.
+model PageEmbedding {
+  editionId  Int
+  edition    Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  page       Int
+  /// sha256 of the text that was embedded — a different hash means redo
+  textHash   String   @db.Char(64)
+  model      String   @db.VarChar(64)
+  /// [start, end) character offsets of each passage in the embedded text
+  chunks     Json
+  /// Float32 little-endian, chunks.length × dimensions (empty when error is set)
+  vectors    Bytes    @db.MediumBlob
+  /// Permanent failure for this text (bad input); cleared by a new text
+  error      String?  @db.Text
+  embeddedAt DateTime
+
+  @@id([editionId, page])
+  @@index([embeddedAt])
+  @@map("page_embeddings")
+}
+
 model Edition {
   id            Int      @id @default(autoincrement())
   title         String
@@ -483,6 +537,8 @@ model Edition {
   /// (see src/lib/search). Filled on upload and by the admin "Indexar busca".
   pages  EditionPage[]
   textVersions PageTextVersion[]
+  embeddings   PageEmbedding[]
+  transcriptionSuggestions TranscriptionSuggestion[]
   articles     Article[]
 
   @@index([publishedAt])

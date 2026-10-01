@@ -14,6 +14,8 @@ import {
   type PipelineStage,
 } from "@/lib/pipeline";
 import { getWorkerState, wakeWorker } from "@/lib/ocr-revision/worker";
+import { countPendingEmbeddings } from "@/lib/search/embed-pages";
+import { isEmbeddingConfigured } from "@/lib/search/embeddings";
 import { getRevisionStats } from "@/lib/ocr-revision/revise";
 import { countPendingExtraction } from "@/lib/entities/extract";
 
@@ -74,12 +76,13 @@ export async function pipelineDoneAction() {
 /** Background AI transcription: settings, live state and page counts for the admin panel. */
 export async function aiWorkerStatusAction() {
   await requireSession();
-  const [settings, stats, extractPending, people, places] = await Promise.all([
+  const [settings, stats, extractPending, people, places, embeddings] = await Promise.all([
     prisma.siteSetting.findUnique({ where: { id: 1 }, select: { aiWorkerEnabled: true, aiWorkerIntervalSec: true } }),
     getRevisionStats(),
     countPendingExtraction(),
     prisma.entity.count({ where: { kind: "person" } }),
     prisma.entity.count({ where: { kind: "place" } }),
+    countPendingEmbeddings(),
   ]);
   return {
     enabled: settings?.aiWorkerEnabled ?? false,
@@ -87,6 +90,7 @@ export async function aiWorkerStatusAction() {
     state: getWorkerState(),
     stats,
     entities: { extractPending, people, places },
+    semantic: { configured: isEmbeddingConfigured(), ...embeddings },
   };
 }
 
