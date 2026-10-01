@@ -68,33 +68,23 @@ export default function AdminSidebar({ username }: { username: string }) {
     sidebarStore.getSnapshot,
     sidebarStore.getServerSnapshot
   );
-  const narrow = useSyncExternalStore(
-    (listener) => {
-      const query = window.matchMedia("(max-width: 767px)");
-      query.addEventListener("change", listener);
-      return () => query.removeEventListener("change", listener);
-    },
-    () => window.matchMedia("(max-width: 767px)").matches,
-    () => false
-  );
-  const compact = collapsed || narrow;
 
   const footerItemClass = `flex items-center rounded-lg py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-700 ${
-    compact ? "justify-center px-0" : "gap-2.5 px-3"
+    collapsed ? "justify-center px-0" : "gap-2.5 px-3"
   }`;
 
   return (
     <aside
       className={`sticky top-0 flex h-screen shrink-0 flex-col border-r border-paper-200 bg-white ${
         animate ? "transition-[width] duration-200 ease-out" : ""
-      } ${compact ? "w-16" : "w-60"}`}
+      } ${collapsed ? "w-16" : "w-60"}`}
     >
       <div
         className={`flex shrink-0 items-center border-b border-paper-200 py-4 ${
-          compact ? "justify-center px-2" : "gap-2 px-3"
+          collapsed ? "justify-center px-2" : "gap-2 px-3"
         }`}
       >
-        {!compact && (
+        {!collapsed && (
           <Link
             href="/admin"
             className="min-w-0 flex-1 truncate px-1 text-sm font-semibold text-brand-900"
@@ -108,34 +98,34 @@ export default function AdminSidebar({ username }: { username: string }) {
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           aria-expanded={!collapsed}
           title={collapsed ? "Expandir menu" : "Recolher menu"}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-700 max-md:hidden"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-700"
         >
           {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
       </div>
 
-      <AdminSidebarNav collapsed={compact} />
+      <AdminSidebarNav collapsed={collapsed} />
 
       <div className="mt-auto flex shrink-0 flex-col gap-1 border-t border-paper-200 p-3">
-        {!compact && <p className="truncate px-3 py-1 text-xs text-slate-500">{username}</p>}
+        {!collapsed && <p className="truncate px-3 py-1 text-xs text-slate-500">{username}</p>}
 
         <Link
           href="/admin/seguranca"
-          title={compact ? "Segurança" : undefined}
+          title={collapsed ? "Segurança" : undefined}
           className={footerItemClass}
         >
           <ShieldCheck size={15} className="shrink-0" />
-          {!compact && "Segurança"}
+          {!collapsed && "Segurança"}
         </Link>
 
         <form action={logoutAction}>
           <button
             type="submit"
-            title={compact ? "Sair" : undefined}
+            title={collapsed ? "Sair" : undefined}
             className={`w-full ${footerItemClass}`}
           >
             <LogOut size={15} className="shrink-0" />
-            {!compact && "Sair"}
+            {!collapsed && "Sair"}
           </button>
         </form>
       </div>

@@ -114,22 +114,6 @@ body {
   color: var(--foreground);
 }
 
-html,
-body {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: clip;
-}
-
-/* Fluid page measure shared by the public shell. It uses the full viewport on
-   common displays and keeps only a modest gutter on ultra-wide monitors. */
-.site-container,
-.memorial-site .max-w-7xl {
-  width: 100%;
-  max-width: 120rem;
-  margin-inline: auto;
-}
-
 /* Thin pastel scrollbars for the tree sidebar */
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
@@ -144,12 +128,9 @@ body {
 
 /* Basic typography for admin-authored HTML content on CMS pages */
 .cms-content {
-  width: 100%;
-  max-width: 96rem;
   color: #334155;
   font-size: 0.95rem;
   line-height: 1.75;
-  overflow-wrap: anywhere;
 }
 .cms-content [data-text-align="center"],
 .rich-text-surface [data-text-align="center"] {
@@ -228,9 +209,6 @@ body {
   color: var(--color-brand-800);
 }
 .cms-content table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
   width: 100%;
   margin: 1rem 0;
   border-collapse: collapse;
@@ -328,8 +306,7 @@ html[data-font-scale="xl"] {
 
 .masthead-scenery > span {
   background-position: center;
-  background-repeat: no-repeat;
-  background-size: auto 100%;
+  background-size: cover;
 }
 
 .masthead-glow {

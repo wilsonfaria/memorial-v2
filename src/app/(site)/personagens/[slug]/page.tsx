@@ -45,7 +45,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ slug
         ]}
       />
 
-      <div className="site-container px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 *:max-w-3xl">
         <div className="mb-6 flex items-center gap-4">
           {character.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
