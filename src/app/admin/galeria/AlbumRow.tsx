@@ -31,8 +31,7 @@ function makeFormData(fields: Record<string, string | number>) {
   return fd;
 }
 
-export default function AlbumRow({ album }: { album: Album }) {
-  const [editing, setEditing] = useState(false);
+export default function AlbumRow({ album, editing = false }: { album: Album; editing?: boolean }) {
   const [progress, setProgress] = useState<string | null>(null);
   const [state, action, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
     // Photos go up one request each (addAlbumPhotoAction) so a big batch never
@@ -178,13 +177,12 @@ export default function AlbumRow({ album }: { album: Album }) {
             >
               {pending ? (progress ?? "Salvando...") : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/galeria"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -195,7 +193,9 @@ export default function AlbumRow({ album }: { album: Album }) {
     <div className="flex items-center gap-3 rounded-lg border border-paper-200 bg-white px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {album.title}
+          <Link href={`/admin/galeria/${album.id}`} className="hover:text-brand-700 hover:underline">
+            {album.title}
+          </Link>
           {!album.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               rascunho
@@ -217,13 +217,13 @@ export default function AlbumRow({ album }: { album: Album }) {
             <ExternalLink size={13} />
           </Link>
         )}
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/galeria/${album.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteAlbumAction}
           id={album.id}

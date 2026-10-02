@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import { Pencil, ExternalLink } from "lucide-react";
 import { deleteProjectAction, updateProjectAction, type ActionState } from "@/lib/actions/project-actions";
@@ -18,8 +18,7 @@ type Project = {
   published: boolean;
 };
 
-export default function ProjectRow({ project }: { project: Project }) {
-  const [editing, setEditing] = useState(false);
+export default function ProjectRow({ project, editing = false }: { project: Project; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateProjectAction,
     undefined
@@ -112,13 +111,12 @@ export default function ProjectRow({ project }: { project: Project }) {
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/projetos"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -129,7 +127,9 @@ export default function ProjectRow({ project }: { project: Project }) {
     <div className="flex items-center gap-3 rounded-lg border border-paper-200 bg-white px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {project.title}
+          <Link href={`/admin/projetos/${project.id}`} className="hover:text-brand-700 hover:underline">
+            {project.title}
+          </Link>
           {!project.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               rascunho
@@ -149,13 +149,13 @@ export default function ProjectRow({ project }: { project: Project }) {
             <ExternalLink size={13} />
           </Link>
         )}
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/projetos/${project.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteProjectAction}
           id={project.id}

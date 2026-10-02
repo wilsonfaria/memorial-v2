@@ -4,8 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildTitleOrNumberFilter } from "@/lib/data";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import EditionForm from "@/components/admin/EditionForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import EditionsFilterBar from "./EditionsFilterBar";
 import EditionsList from "./EditionsList";
 import SearchIndexPanel from "./SearchIndexPanel";
@@ -126,18 +125,21 @@ export default async function AdminEditionsPage({
         title="Edições"
         description="Cadastro manual de edições do acervo. Para enviar várias de uma vez, use o Upload em massa."
         action={
-          <Link
-            href="/admin/edicoes/sugestoes"
-            className="flex items-center gap-1.5 rounded-lg border border-paper-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-brand-300"
-          >
-            <MessageCircle size={13} />
-            Sugestões de leitura
-            {pendingSuggestions > 0 && (
-              <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                {pendingSuggestions}
-              </span>
-            )}
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/edicoes/sugestoes"
+              className="flex items-center gap-1.5 rounded-lg border border-paper-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:border-brand-300"
+            >
+              <MessageCircle size={13} />
+              Sugestões de leitura
+              {pendingSuggestions > 0 && (
+                <span className="rounded-full bg-accent-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  {pendingSuggestions}
+                </span>
+              )}
+            </Link>
+            <AdminNewLink href="/admin/edicoes/nova" label="Nova edição" />
+          </div>
         }
       />
 
@@ -156,10 +158,6 @@ export default async function AdminEditionsPage({
       <PipelinePanel totals={pipelineTotals} />
 
       <SearchIndexPanel initialStatus={searchStatus} />
-
-      <CreatePanel label="Nova edição" title="Nova edição">
-        <EditionForm newspapers={newspapers} />
-      </CreatePanel>
 
       <EditionsFilterBar newspapers={newspapers} years={distinctYears.map((y) => y.year)} />
 

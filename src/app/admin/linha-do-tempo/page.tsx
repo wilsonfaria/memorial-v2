@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import MilestoneForm from "./MilestoneForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import MilestoneRow from "./MilestoneRow";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +21,8 @@ export default async function AdminTimelinePage() {
             editorial, independente das edições digitalizadas do acervo.
           </>
         }
+        action={<AdminNewLink href="/admin/linha-do-tempo/novo" label="Novo marco" />}
       />
-
-      <CreatePanel label="Novo marco" title="Novo marco">
-        <MilestoneForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {milestones.length === 0 && (

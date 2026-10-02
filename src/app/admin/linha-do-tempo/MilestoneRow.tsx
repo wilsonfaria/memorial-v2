@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { deleteMilestoneAction, updateMilestoneAction, type ActionState } from "@/lib/actions/timeline-actions";
 import DeleteButton from "@/components/admin/DeleteButton";
@@ -14,8 +15,7 @@ type Milestone = {
   published: boolean;
 };
 
-export default function MilestoneRow({ milestone }: { milestone: Milestone }) {
-  const [editing, setEditing] = useState(false);
+export default function MilestoneRow({ milestone, editing = false }: { milestone: Milestone; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateMilestoneAction,
     undefined
@@ -92,13 +92,12 @@ export default function MilestoneRow({ milestone }: { milestone: Milestone }) {
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/linha-do-tempo"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -110,7 +109,9 @@ export default function MilestoneRow({ milestone }: { milestone: Milestone }) {
       <div className="w-14 shrink-0 text-sm font-semibold text-brand-700">{milestone.year}</div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {milestone.title}
+          <Link href={`/admin/linha-do-tempo/${milestone.id}`} className="hover:text-brand-700 hover:underline">
+            {milestone.title}
+          </Link>
           {!milestone.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               oculto
@@ -122,13 +123,13 @@ export default function MilestoneRow({ milestone }: { milestone: Milestone }) {
         )}
       </div>
       <div className="flex items-center gap-1">
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/linha-do-tempo/${milestone.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteMilestoneAction}
           id={milestone.id}

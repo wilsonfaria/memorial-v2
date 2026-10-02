@@ -1,9 +1,8 @@
 import { getHeroSlides, getHomepageContent } from "@/lib/homepage";
 import PageHeader from "@/components/admin/PageHeader";
 import Card from "@/components/admin/Card";
-import CreatePanel from "@/components/admin/CreatePanel";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import HomepageContentForm from "./HomepageContentForm";
-import HeroSlideForm from "./HeroSlideForm";
 import HeroSlideRow from "./HeroSlideRow";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +16,7 @@ export default async function AdminHomepagePage() {
       <PageHeader
         title="Página Inicial"
         description="Conteúdo editorial da home: carrossel do hero, vídeo “Memória Viva” e o bloco “Por trás do Memorial”. As mudanças refletem no site assim que salvas."
+        action={<AdminNewLink href="/admin/pagina-inicial/slides/novo" label="Novo slide" />}
       />
 
       <Card
@@ -29,10 +29,6 @@ export default async function AdminHomepagePage() {
         }
         className="mb-6"
       >
-        <CreatePanel label="Novo slide" title="Novo slide">
-          <HeroSlideForm />
-        </CreatePanel>
-
         <div className="flex flex-col gap-1">
           {slides.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-400">

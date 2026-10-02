@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Pencil, ExternalLink } from "lucide-react";
@@ -21,8 +21,7 @@ type Character = {
   published: boolean;
 };
 
-export default function CharacterRow({ character }: { character: Character }) {
-  const [editing, setEditing] = useState(false);
+export default function CharacterRow({ character, editing = false }: { character: Character; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateCharacterAction,
     undefined
@@ -135,13 +134,12 @@ export default function CharacterRow({ character }: { character: Character }) {
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/personagens"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -157,7 +155,9 @@ export default function CharacterRow({ character }: { character: Character }) {
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {character.name}
+          <Link href={`/admin/personagens/${character.id}`} className="hover:text-brand-700 hover:underline">
+            {character.name}
+          </Link>
           {!character.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               rascunho
@@ -179,13 +179,13 @@ export default function CharacterRow({ character }: { character: Character }) {
             <ExternalLink size={13} />
           </Link>
         )}
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/personagens/${character.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteCharacterAction}
           id={character.id}

@@ -4,9 +4,8 @@ import { getBannerDailyTotals } from "@/lib/banners";
 import { bannerStatus } from "@/lib/banner-status";
 import PageHeader from "@/components/admin/PageHeader";
 import Card from "@/components/admin/Card";
-import CreatePanel from "@/components/admin/CreatePanel";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import DailyBarChart from "@/components/admin/DailyBarChart";
-import SponsorForm from "./SponsorForm";
 import SponsorRow from "./SponsorRow";
 import BannerSlotsForm from "./BannerSlotsForm";
 
@@ -36,6 +35,7 @@ export default async function AdminSponsorsPage() {
       <PageHeader
         title="Banners de patrocinadores"
         description="Os banners aparecem na faixa acima do rodapé, em todas as páginas do site. A cada página visitada, os fixados entram sempre e os demais são sorteados até completar a quantidade por página."
+        action={<AdminNewLink href="/admin/patrocinadores/novo" label="Novo banner" />}
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -86,10 +86,6 @@ export default async function AdminSponsorsPage() {
           <DailyBarChart data={daily.map((d) => ({ date: d.date, count: d.clicks }))} color="var(--color-secondary-600)" trackColor="var(--color-secondary-100)" />
         </Card>
       </div>
-
-      <CreatePanel label="Novo banner" title="Novo banner">
-        <SponsorForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-2">
         {banners.length === 0 && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import Link from "next/link";
 import { Pencil, ExternalLink } from "lucide-react";
 import { deleteChronicleAction, updateChronicleAction, type ActionState } from "@/lib/actions/chronicle-actions";
@@ -19,8 +19,7 @@ type Chronicle = {
   published: boolean;
 };
 
-export default function ChronicleRow({ chronicle }: { chronicle: Chronicle }) {
-  const [editing, setEditing] = useState(false);
+export default function ChronicleRow({ chronicle, editing = false }: { chronicle: Chronicle; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateChronicleAction,
     undefined
@@ -124,13 +123,12 @@ export default function ChronicleRow({ chronicle }: { chronicle: Chronicle }) {
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/cronicas"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -141,7 +139,9 @@ export default function ChronicleRow({ chronicle }: { chronicle: Chronicle }) {
     <div className="flex items-center gap-3 rounded-lg border border-paper-200 bg-white px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {chronicle.title}
+          <Link href={`/admin/cronicas/${chronicle.id}`} className="hover:text-brand-700 hover:underline">
+            {chronicle.title}
+          </Link>
           {!chronicle.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               rascunho
@@ -163,13 +163,13 @@ export default function ChronicleRow({ chronicle }: { chronicle: Chronicle }) {
             <ExternalLink size={13} />
           </Link>
         )}
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/cronicas/${chronicle.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteChronicleAction}
           id={chronicle.id}

@@ -31,6 +31,9 @@ import {
   Undo,
   Redo,
   Minus,
+  Eraser,
+  Maximize2,
+  Minimize2,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -43,7 +46,7 @@ export default function RichTextEditor({
   name,
   defaultValue,
   placeholder,
-  minHeight = 220,
+  minHeight = 360,
 }: {
   name: string;
   defaultValue?: string | null;
@@ -52,6 +55,7 @@ export default function RichTextEditor({
 }) {
   const [html, setHtml] = useState(defaultValue ?? "");
   const [uploading, setUploading] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -83,6 +87,15 @@ export default function RichTextEditor({
     return () => editor?.destroy();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [fullscreen]);
 
   const insertImage = useCallback(
     async (file: File) => {
@@ -118,9 +131,23 @@ export default function RichTextEditor({
     );
   }
 
+  const plainText = editor.getText().trim();
+  const wordCount = plainText ? plainText.split(/\s+/).length : 0;
+
   return (
-    <div className="overflow-hidden rounded-xl border border-brand-200 bg-white shadow-sm focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100" style={{ "--editor-min-h": `${minHeight}px` } as React.CSSProperties}>
-      <Toolbar editor={editor} onPickImage={() => fileInputRef.current?.click()} uploading={uploading} />
+    <div
+      className={`overflow-hidden border border-brand-200 bg-white shadow-sm focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-100 ${
+        fullscreen ? "fixed inset-3 z-[80] flex flex-col rounded-xl shadow-2xl sm:inset-6" : "rounded-xl"
+      }`}
+      style={{ "--editor-min-h": fullscreen ? "calc(100vh - 10rem)" : `${minHeight}px` } as React.CSSProperties}
+    >
+      <Toolbar
+        editor={editor}
+        onPickImage={() => fileInputRef.current?.click()}
+        uploading={uploading}
+        fullscreen={fullscreen}
+        onToggleFullscreen={() => setFullscreen((value) => !value)}
+      />
       <input
         ref={fileInputRef}
         type="file"
@@ -132,7 +159,13 @@ export default function RichTextEditor({
           e.target.value = "";
         }}
       />
-      <EditorContent editor={editor} />
+      <div className={fullscreen ? "min-h-0 flex-1 overflow-y-auto" : ""}>
+        <EditorContent editor={editor} />
+      </div>
+      <div className="flex items-center justify-between border-t border-brand-100 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-400">
+        <span>{wordCount} {wordCount === 1 ? "palavra" : "palavras"}</span>
+        <span>{fullscreen ? "Esc para sair da tela cheia" : "Editor visual"}</span>
+      </div>
       <input type="hidden" name={name} value={html} />
     </div>
   );
@@ -142,13 +175,41 @@ function Toolbar({
   editor,
   onPickImage,
   uploading,
+  fullscreen,
+  onToggleFullscreen,
 }: {
   editor: Editor;
   onPickImage: () => void;
   uploading: boolean;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
+  const blockType = editor.isActive("heading", { level: 2 })
+    ? "h2"
+    : editor.isActive("heading", { level: 3 })
+      ? "h3"
+      : "p";
+
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-brand-100 bg-brand-50/80 p-2 backdrop-blur-sm" role="toolbar" aria-label="Formatação do texto">
+      <select
+        value={blockType}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (value === "h2") editor.chain().focus().setHeading({ level: 2 }).run();
+          else if (value === "h3") editor.chain().focus().setHeading({ level: 3 }).run();
+          else editor.chain().focus().setParagraph().run();
+        }}
+        className="h-8 rounded-md border border-brand-200 bg-white px-2 text-xs font-medium text-slate-600 outline-none focus:border-brand-400"
+        aria-label="Formato do parágrafo"
+      >
+        <option value="p">Parágrafo</option>
+        <option value="h2">Título 2</option>
+        <option value="h3">Título 3</option>
+      </select>
+
+      <Divider />
+
       <ToolbarButton title="Negrito" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
         <Bold size={14} />
       </ToolbarButton>
@@ -254,6 +315,16 @@ function Toolbar({
       </ToolbarButton>
       <ToolbarButton title="Refazer" onClick={() => editor.chain().focus().redo().run()}>
         <Redo size={14} />
+      </ToolbarButton>
+
+      <ToolbarButton title="Limpar formatação" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}>
+        <Eraser size={14} />
+      </ToolbarButton>
+
+      <span className="flex-1" />
+
+      <ToolbarButton title={fullscreen ? "Sair da tela cheia" : "Editar em tela cheia"} active={fullscreen} onClick={onToggleFullscreen}>
+        {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
       </ToolbarButton>
 
       {uploading && <span className="ml-2 text-xs text-slate-400">Enviando imagem...</span>}

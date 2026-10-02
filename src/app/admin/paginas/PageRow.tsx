@@ -28,8 +28,7 @@ type Page = {
   images: PageImage[];
 };
 
-export default function PageRow({ page }: { page: Page }) {
-  const [editing, setEditing] = useState(false);
+export default function PageRow({ page, editing = false }: { page: Page; editing?: boolean }) {
   const [progress, setProgress] = useState<string | null>(null);
   const [state, action, pending] = useActionState<ActionState, FormData>(async (prev, formData) => {
     // Gallery images go up one request each (addPageImageAction) so a big
@@ -192,13 +191,12 @@ export default function PageRow({ page }: { page: Page }) {
             >
               {pending ? (progress ?? "Salvando...") : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/paginas"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -209,7 +207,9 @@ export default function PageRow({ page }: { page: Page }) {
     <div className="flex items-center gap-3 rounded-lg border border-paper-200 bg-white px-4 py-2.5">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {page.title}
+          <Link href={`/admin/paginas/${page.id}`} className="hover:text-brand-700 hover:underline">
+            {page.title}
+          </Link>
           {!page.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
               rascunho
@@ -231,13 +231,13 @@ export default function PageRow({ page }: { page: Page }) {
             <ExternalLink size={13} />
           </Link>
         )}
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/paginas/${page.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deletePageAction}
           id={page.id}

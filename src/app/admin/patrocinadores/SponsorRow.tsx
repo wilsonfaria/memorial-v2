@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+import Link from "next/link";
 import { Pencil, Pin, PinOff, RotateCcw } from "lucide-react";
 import {
   deleteSponsorAction,
@@ -52,8 +53,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function SponsorRow({ banner }: { banner: Banner }) {
-  const [editing, setEditing] = useState(false);
+export default function SponsorRow({ banner, editing = false }: { banner: Banner; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(updateSponsorAction, undefined);
 
   if (editing) {
@@ -74,13 +74,12 @@ export default function SponsorRow({ banner }: { banner: Banner }) {
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/patrocinadores"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
               Fechar
-            </button>
+            </Link>
           </div>
         </form>
       </div>
@@ -104,7 +103,9 @@ export default function SponsorRow({ banner }: { banner: Banner }) {
         </div>
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-700">
-            <span className="truncate">{banner.name}</span>
+            <Link href={`/admin/patrocinadores/${banner.id}`} className="truncate hover:text-brand-700 hover:underline">
+              {banner.name}
+            </Link>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_CLASS[status]}`}>
               {BANNER_STATUS_LABEL[status]}
             </span>
@@ -163,9 +164,9 @@ export default function SponsorRow({ banner }: { banner: Banner }) {
               <RotateCcw size={13} />
             </button>
           </form>
-          <button onClick={() => setEditing(true)} className={iconButtonClass} title="Editar">
+          <Link href={`/admin/patrocinadores/${banner.id}`} className={iconButtonClass} title="Editar">
             <Pencil size={13} />
-          </button>
+          </Link>
           <DeleteButton
             action={deleteSponsorAction}
             id={banner.id}

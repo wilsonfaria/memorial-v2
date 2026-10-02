@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import ProjectForm from "./ProjectForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import ProjectRow from "./ProjectRow";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +18,8 @@ export default async function AdminProjectsPage() {
             de digitalização, pesquisa e documentação por trás do acervo.
           </>
         }
+        action={<AdminNewLink href="/admin/projetos/novo" label="Novo projeto" />}
       />
-
-      <CreatePanel label="Novo projeto" title="Novo projeto">
-        <ProjectForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {projects.length === 0 && (

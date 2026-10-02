@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deleteNewspaperAction } from "@/lib/actions/newspaper-actions";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import NewspaperForm from "./NewspaperForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import { Trash2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +17,8 @@ export default async function AdminNewspapersPage() {
       <PageHeader
         title="Jornais"
         description="Os títulos cujo acervo este memorial hospeda. Cada jornal organiza suas edições em décadas, anos e meses."
+        action={<AdminNewLink href="/admin/jornais/novo" label="Novo jornal" />}
       />
-
-      <CreatePanel label="Novo jornal" title="Novo jornal">
-        <NewspaperForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-2">
         {newspapers.length === 0 && (

@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import ChronicleForm from "./ChronicleForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import ChronicleRow from "./ChronicleRow";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +21,8 @@ export default async function AdminChroniclesPage() {
             sequência de exibição quando empatada por data.
           </>
         }
+        action={<AdminNewLink href="/admin/cronicas/novo" label="Nova crônica" />}
       />
-
-      <CreatePanel label="Nova crônica" title="Nova crônica">
-        <ChronicleForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {chronicles.length === 0 && (

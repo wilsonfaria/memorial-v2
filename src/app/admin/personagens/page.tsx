@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import CharacterForm from "./CharacterForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import CharacterRow from "./CharacterRow";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +21,8 @@ export default async function AdminCharactersPage() {
             <code>/personagens</code>.
           </>
         }
+        action={<AdminNewLink href="/admin/personagens/novo" label="Novo personagem" />}
       />
-
-      <CreatePanel label="Novo personagem" title="Novo personagem">
-        <CharacterForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {characters.length === 0 && (

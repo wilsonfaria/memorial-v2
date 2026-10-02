@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import Link from "next/link";
 import { ChevronUp, ChevronDown, Pencil, ExternalLink } from "lucide-react";
 import {
   deleteMenuItemAction,
@@ -9,20 +7,14 @@ import {
 } from "@/lib/actions/menu-actions";
 import DeleteButton from "@/components/admin/DeleteButton";
 import type { AdminMenuItemRow } from "@/lib/menu-repo";
-import MenuItemModal from "./MenuItemModal";
-
-type ParentOption = { id: number; label: string; depth: number };
 
 export default function MenuItemRow({
   item,
-  menuId,
-  parentOptions,
+  menuKey,
 }: {
   item: AdminMenuItemRow;
-  menuId: number;
-  parentOptions: ParentOption[];
+  menuKey: string;
 }) {
-  const [editing, setEditing] = useState(false);
   const isFirst = item.siblingIndex === 0;
   const isLast = item.siblingIndex === item.siblingCount - 1;
 
@@ -63,28 +55,19 @@ export default function MenuItemRow({
             <ChevronDown size={14} />
           </button>
         </form>
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/menus/${item.id}?menu=${menuKey}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteMenuItemAction}
           id={item.id}
           confirmMessage={`Remover o item "${item.label}"? Os itens filhos dele também serão removidos.`}
         />
       </div>
-
-      {editing && (
-        <MenuItemModal
-          menuId={menuId}
-          item={{ id: item.id, label: item.label, url: item.url, parentId: item.parentId, openNewTab: item.openNewTab }}
-          parentOptions={parentOptions}
-          onClose={() => setEditing(false)}
-        />
-      )}
     </div>
   );
 }

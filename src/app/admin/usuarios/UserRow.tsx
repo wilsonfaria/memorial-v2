@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { deleteUserAction, updateUserAction, type ActionState } from "@/lib/actions/auth-actions";
 import DeleteButton from "@/components/admin/DeleteButton";
@@ -11,12 +12,13 @@ export default function UserRow({
   user,
   isSelf,
   canDelete,
+  editing = false,
 }: {
   user: User;
   isSelf: boolean;
   canDelete: boolean;
+  editing?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState<ActionState, FormData>(
     updateUserAction,
     undefined
@@ -73,13 +75,12 @@ export default function UserRow({
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/usuarios"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
-              Cancelar
-            </button>
+              Fechar
+            </Link>
           </div>
         </form>
       </div>
@@ -90,7 +91,9 @@ export default function UserRow({
     <div className="flex items-center justify-between rounded-lg border border-paper-200 bg-white px-4 py-2.5">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-slate-700">
-          {user.name}
+          <Link href={`/admin/usuarios/${user.id}`} className="hover:text-brand-700 hover:underline">
+            {user.name}
+          </Link>
           {isSelf && (
             <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] text-brand-700">
               você
@@ -102,13 +105,13 @@ export default function UserRow({
         </p>
       </div>
       <div className="flex items-center gap-1">
-        <button
-          onClick={() => setEditing(true)}
+        <Link
+          href={`/admin/usuarios/${user.id}`}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-brand-100 hover:text-brand-700"
           title="Editar"
         >
           <Pencil size={13} />
-        </button>
+        </Link>
         {canDelete && (
           <DeleteButton
             action={deleteUserAction}

@@ -18,8 +18,7 @@ export default async function AdminMenusPage({
   const activeKey = params.menu && isMenuSlotKey(params.menu) ? params.menu : MENU_SLOTS[0].key;
   const activeSlot = MENU_SLOTS.find((slot) => slot.key === activeKey)!;
 
-  const { menu, items } = await getAdminMenu(activeSlot.key, activeSlot.name);
-  const parentOptions = items.map((item) => ({ id: item.id, label: item.label, depth: item.depth }));
+  const { items } = await getAdminMenu(activeSlot.key, activeSlot.name);
 
   return (
     <>
@@ -44,7 +43,7 @@ export default async function AdminMenusPage({
         ))}
       </div>
 
-      <MenuItemsList menuId={menu.id} items={items} parentOptions={parentOptions} />
+      <MenuItemsList menuKey={activeKey} items={items} />
     </>
   );
 }

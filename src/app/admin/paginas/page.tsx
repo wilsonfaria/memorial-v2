@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/admin/PageHeader";
-import CreatePanel from "@/components/admin/CreatePanel";
-import PageForm from "./PageForm";
+import AdminNewLink from "@/components/admin/AdminNewLink";
 import PageRow from "./PageRow";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +22,8 @@ export default async function AdminPagesPage() {
             disponíveis em <code>/&lt;endereço&gt;</code> assim que publicadas.
           </>
         }
+        action={<AdminNewLink href="/admin/paginas/novo" label="Nova página" />}
       />
-
-      <CreatePanel label="Nova página" title="Nova página">
-        <PageForm />
-      </CreatePanel>
 
       <div className="flex flex-col gap-1">
         {pages.length === 0 && (

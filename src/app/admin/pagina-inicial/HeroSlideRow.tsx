@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+import Link from "next/link";
 import { ArrowDown, ArrowUp, ImageOff, Pencil } from "lucide-react";
 import {
   deleteHeroSlideAction,
@@ -41,8 +42,7 @@ function MoveButton({ id, direction, disabled }: { id: number; direction: -1 | 1
   );
 }
 
-export default function HeroSlideRow({ slide, index, total }: { slide: Slide; index: number; total: number }) {
-  const [editing, setEditing] = useState(false);
+export default function HeroSlideRow({ slide, index, total, editing = false }: { slide: Slide; index: number; total: number; editing?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(updateHeroSlideAction, undefined);
 
   if (editing) {
@@ -63,13 +63,12 @@ export default function HeroSlideRow({ slide, index, total }: { slide: Slide; in
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
+            <Link
+              href="/admin/pagina-inicial"
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-brand-100"
             >
               Fechar
-            </button>
+            </Link>
           </div>
         </form>
       </div>
@@ -89,7 +88,9 @@ export default function HeroSlideRow({ slide, index, total }: { slide: Slide; in
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-slate-700">
-          {slide.headline}
+          <Link href={`/admin/pagina-inicial/slides/${slide.id}`} className="hover:text-brand-700 hover:underline">
+            {slide.headline}
+          </Link>
           {!slide.published && (
             <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">oculto</span>
           )}
@@ -101,9 +102,9 @@ export default function HeroSlideRow({ slide, index, total }: { slide: Slide; in
       <div className="flex items-center gap-1">
         <MoveButton id={slide.id} direction={-1} disabled={index === 0} />
         <MoveButton id={slide.id} direction={1} disabled={index === total - 1} />
-        <button onClick={() => setEditing(true)} className={iconButtonClass} title="Editar">
+        <Link href={`/admin/pagina-inicial/slides/${slide.id}`} className={iconButtonClass} title="Editar">
           <Pencil size={13} />
-        </button>
+        </Link>
         <DeleteButton
           action={deleteHeroSlideAction}
           id={slide.id}
