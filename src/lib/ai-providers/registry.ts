@@ -10,6 +10,11 @@ function specFor(id: ProviderId): ProviderSpec {
   return id === "groq" ? GROQ_SPEC : GEMINI_SPEC;
 }
 
+/** Call after saving a provider's key/models in the admin — see engine.resetProviderState. */
+export function resetProviderState(id: ProviderId): void {
+  engine.resetProviderState(specFor(id));
+}
+
 function envApiKey(spec: ProviderSpec): string | undefined {
   return process.env[spec.apiKeyEnvVar] || undefined;
 }

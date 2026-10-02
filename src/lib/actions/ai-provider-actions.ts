@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { readAiConfig, writeAiConfig, type AiConfig } from "@/lib/ai-config";
-import { testProvider, PROVIDER_SPECS } from "@/lib/ai-providers/registry";
+import { testProvider, resetProviderState, PROVIDER_SPECS } from "@/lib/ai-providers/registry";
 import type { ProviderId } from "@/lib/ai-providers/types";
 
 async function requireSession() {
@@ -72,7 +72,11 @@ export async function updateAiProviderAction(_prevState: ActionState, formData: 
   }
 
   writeAiConfig({ activeProvider, overrides });
+  // A saved key/model is a fresh start for this provider — don't let an old
+  // "out of quota today" flag (set under a previous key) keep blocking it.
+  for (const spec of PROVIDER_SPECS) resetProviderState(spec.id);
 
   revalidatePath("/admin/edicoes");
+  revalidatePath("/admin/chaves");
   return { success: `${activeSpec.label} testado com sucesso e definido como provedor ativo.` };
 }

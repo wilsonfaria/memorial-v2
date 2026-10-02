@@ -46,6 +46,20 @@ export function availableModels(spec: ProviderSpec, models: string[]): string[] 
   return models.filter((m) => shared.exhausted.get(key(spec, m)) !== today);
 }
 
+/**
+ * Clears the exhausted/throttle state for one provider. The exhausted map is
+ * keyed only by provider+model, not by which API key was in use — so a model
+ * marked "out of quota today" under an old/bad key stays marked even after
+ * the admin saves a new one, and every call keeps failing without ever
+ * trying it. Called whenever a provider's config is saved in the admin, so a
+ * key change always gets a clean attempt.
+ */
+export function resetProviderState(spec: ProviderSpec): void {
+  const prefix = `${spec.id}:`;
+  for (const k of [...shared.exhausted.keys()]) if (k.startsWith(prefix)) shared.exhausted.delete(k);
+  for (const k of [...shared.nextSlot.keys()]) if (k.startsWith(prefix)) shared.nextSlot.delete(k);
+}
+
 class ModelDailyQuota extends Error {}
 
 const BUSY_ATTEMPTS = 3;
